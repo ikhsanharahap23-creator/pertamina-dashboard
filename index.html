@@ -1,632 +1,471 @@
 <!DOCTYPE html>
-<!-- saved from url=(0153)https://ppl-ai-code-interpreter-files.s3.amazonaws.com/web/direct-files/01602eca5157903e66eeedab31460d4b/0e4be8bb-6d56-4062-acb8-79e63d89127a/index.html# -->
-<html lang="id"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
-    
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Construction Dashboard AI - Pertamina</title>
-    <link rel="stylesheet" href="style.css">
-    <script src="chart.js"></script>
-    <script src="xlsx.full.min.js"></script>
-    <script src="pptxgen.bundle.js"></script>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Construction Dashboard AI - Pertamina</title>
+  <link rel="stylesheet" href="style.css">
+  <!-- Libraries -->
+  <script src="chart.js"></script>
+  <script src="xlsx.full.min.js"></script>
+  <script src="pptxgen.bundle.js"></script>
 </head>
-<body data-new-gr-c-s-check-loaded="14.1255.0" data-gr-ext-installed="">
-    <!-- Sidebar Navigation -->
- <!-- Sidebar / Navbar -->
-  <a href="#" class="nav-link active" data-section="overview">Overview</a>
-  <a href="#" class="nav-link" data-section="excel">Upload Data Excel</a>
-  <a href="#" class="nav-link" data-section="scheduler">AI Scheduler</a>
-  <a href="#" class="nav-link" data-section="permits">Monitoring Safety</a>
-  <a href="#" class="nav-link" data-section="documents">Smart Document</a>
-  <a href="#" class="nav-link" data-section="reports">Generator Laporan</a>
+<body>
+  <!-- Sidebar Navigation -->
+  <nav class="sidebar">
+    <a href="#" class="nav-link active" data-section="overview">Overview</a>
+    <a href="#" class="nav-link" data-section="excel-management">Upload Data Excel</a>
+    <a href="#" class="nav-link" data-section="scheduler">AI Scheduler</a>
+    <a href="#" class="nav-link" data-section="permits">Monitoring Safety</a>
+    <a href="#" class="nav-link" data-section="documents">Smart Document</a>
+    <a href="#" class="nav-link" data-section="reports">Generator Laporan</a>
+  </nav>
 
-        </nav>
+  <!-- Main Content -->
+  <div class="main-content">
+
+    <!-- Overview Section -->
+    <div id="overview" class="content-section active">
+      <div class="page-header">
+        <h1>Dashboard Overview</h1>
+        <div class="filter-container">
+          <select id="projectFilter" class="form-control project-filter">
+            <option value="all">Semua Proyek</option>
+            <option value="Petani Substation">Petani Substation</option>
+            <option value="Menggala Substation">Menggala Substation</option>
+            <option value="Nella Substation">Nella Substation</option>
+            <option value="Bangko Substation">Bangko Substation</option>
+            <option value="Balam SS">Balam SS</option>
+            <option value="Sintong SS">Sintong SS</option>
+            <option value="OKB Substation">OKB Substation</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- KPI Cards -->
+      <div class="kpi-grid">
+        <div class="kpi-card">
+          <div class="kpi-icon">🏗️</div>
+          <div class="kpi-content">
+            <h3 id="totalProjects">7</h3>
+            <p>Total Proyek</p>
+          </div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-icon">📋</div>
+          <div class="kpi-content">
+            <h3 id="activePermits">2</h3>
+            <p>Permit Aktif</p>
+          </div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-icon">🛡️</div>
+          <div class="kpi-content">
+            <h3 id="safetyScore">94%</h3>
+            <p>Skor Safety</p>
+          </div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-icon">💰</div>
+          <div class="kpi-content">
+            <h3 id="budgetPerformance">62%</h3>
+            <p>Performa Budget</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Charts Grid -->
+      <div class="charts-grid">
+        <div class="chart-container" style="position: relative; height: 300px;">
+          <h3>Progress Proyek</h3>
+          <canvas id="progressChart"></canvas>
+        </div>
+        <div class="chart-container" style="position: relative; height: 300px;">
+          <h3>Safety Trend - Keseluruhan Proyek</h3>
+          <canvas id="safetyChart"></canvas>
+        </div>
+      </div>
+
+      <div id="emptyState" class="empty-state" style="display:none;">
+        <p>Tidak ada data yang tersedia untuk proyek yang dipilih.</p>
+      </div>
     </div>
 
-    <!-- Main Content -->
-    <div class="main-content">
-        <!-- Overview Section -->
-        <div id="overview" class="content-section">
-            <div class="page-header">
-                <h1>Dashboard Overview</h1>
-                <div class="filter-container">
-                    <select id="projectFilter" class="form-control project-filter"><option value="all">Semua Proyek</option><option value="Petani Substation">Petani Substation</option><option value="Menggala Substation">Menggala Substation</option><option value="Nella Substation">Nella Substation</option><option value="Bangko Substation">Bangko Substation</option><option value="Balam SS">Balam SS</option><option value="Sintong SS">Sintong SS</option><option value="OKB Substation">OKB Substation</option></select>
-                </div>
-            </div>
+    <!-- Excel Management Section -->
+    <div id="excel-management" class="content-section">
+      <div class="page-header">
+        <h1>Upload Data Excel</h1>
+        <p style="color: var(--color-text-secondary); margin: 0;">
+          Upload satu file Excel untuk memperbarui seluruh dashboard (Overview, AI Scheduler, Monitoring Safety, Smart Document)
+        </p>
+      </div>
 
-            <!-- KPI Cards -->
-            <div class="kpi-grid">
-                <div class="kpi-card">
-                    <div class="kpi-icon">🏗️</div>
-                    <div class="kpi-content">
-                        <h3 id="totalProjects">7</h3>
-                        <p>Total Proyek</p>
-                    </div>
-                </div>
-                <div class="kpi-card">
-                    <div class="kpi-icon">📋</div>
-                    <div class="kpi-content">
-                        <h3 id="activePermits">2</h3>
-                        <p>Permit Aktif</p>
-                    </div>
-                </div>
-                <div class="kpi-card">
-                    <div class="kpi-icon">🛡️</div>
-                    <div class="kpi-content">
-                        <h3 id="safetyScore">94%</h3>
-                        <p>Skor Safety</p>
-                    </div>
-                </div>
-                <div class="kpi-card">
-                    <div class="kpi-icon">💰</div>
-                    <div class="kpi-content">
-                        <h3 id="budgetPerformance">62%</h3>
-                        <p>Performa Budget</p>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Charts Grid -->
-            <div class="charts-grid">
-                <div class="chart-container" style="position: relative; height: 300px;">
-                    <h3>Progress Proyek</h3>
-                    <canvas id="progressChart" style="display: block; box-sizing: border-box; height: 249px; width: 680px;" width="510" height="186"></canvas>
-                </div>
-                <div class="chart-container" style="position: relative; height: 300px;">
-                    <h3>Safety Trend - Keseluruhan Proyek</h3>
-                    <canvas id="safetyChart" style="display: block; box-sizing: border-box; height: 249px; width: 680px;" width="510" height="186"></canvas>
-                </div>
-            </div>
-
-            <div id="emptyState" class="empty-state" style="display: none;">
-                <p>Tidak ada data yang tersedia untuk proyek yang dipilih.</p>
-            </div>
-        </div>
-
-        <!-- Excel Management Section -->
-        <div id="excel-management" class="content-section">
-            <div class="page-header">
-                <h1>Upload Data Excel</h1>
-                <p style="color: var(--color-text-secondary); margin: 0;">Upload satu file Excel untuk memperbarui seluruh dashboard (Overview, AI Scheduler, Monitoring Safety, Smart Document)</p>
-            </div>
-
-            <div class="excel-grid">
-                <div class="card upload-area">
-                    <div class="card__body">
-                        <div id="dropZone" class="drop-zone">
-                            <div class="drop-zone-content">
-                                <div class="drop-zone-icon">📁</div>
-                                <p>Drag &amp; drop file Excel di sini atau klik untuk browse</p>
-                                <p style="font-size: var(--font-size-sm); color: var(--color-text-secondary);">
-                                    File harus berisi sheet: <strong>Projects, S_Curve, Safety, Issues, Plans, Documents, Permits</strong>
-                                </p>
-                                <input type="file" id="fileInput" accept=".xlsx,.xls" style="display: none;">
-                                <button class="btn btn--secondary" onclick="document.getElementById(&#39;fileInput&#39;).click()">
-                                    Pilih File Excel
-                                </button>
-                            </div>
-                        </div>
-                        <div id="uploadProgress" class="upload-progress" style="display: none;">
-                            <div class="progress-bar">
-                                <div id="progressBar" class="progress-fill"></div>
-                            </div>
-                            <p id="progressText">Uploading... 0%</p>
-                        </div>
-                        <div id="validationResults" class="validation-results"></div>
-                    </div>
-                </div>
-
-                <div class="card actions-card">
-                    <div class="card__body">
-                        <h3>Actions</h3>
-                        <div class="action-buttons">
-                            <a href="https://ppl-ai-code-interpreter-files.s3.amazonaws.com/web/direct-files/01602eca5157903e66eeedab31460d4b/164efb62-2a1d-4d47-a736-c0af99128114/07a8396d.xlsx" class="btn btn--primary btn--full-width" target="_blank" download="Dashboard_Complete_Final.xlsx">
-                                📥 Download Template Lengkap
-                            </a>
-                            <button class="btn btn--outline btn--full-width" onclick="downloadCurrentData()">
-                                📊 Download Data Saat Ini
-                            </button>
-                        </div>
-                        <div class="template-info">
-                            <strong>Template Lengkap berisi:</strong>
-                            <ul>
-                                <li><strong>Projects:</strong> Data proyek dengan Project_ID, Progress, Budget, Safety Score</li>
-                                <li><strong>S_Curve:</strong> Data S-Curve dengan Week/Month labels untuk AI Scheduler</li>
-                                <li><strong>Safety:</strong> Data safety dengan Total_Manpower dan Safe_Man_Hours</li>
-                                <li><strong>Issues:</strong> Data issue dengan Project_ID mapping</li>
-                                <li><strong>Plans:</strong> Data rencana dengan Project_ID mapping</li>
-                                <li><strong>Documents:</strong> Data dokumen untuk Smart Document Search</li>
-                                <li><strong>Permits:</strong> Data permit untuk monitoring</li>
-                            </ul>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <div class="card">
-                <div class="card__header">
-                    <h3>Upload History</h3>
-                </div>
-                <div class="card__body">
-                    <div class="table-container">
-                        <table id="uploadHistoryTable">
-                            <thead>
-                                <tr>
-                                    <th>File Name</th>
-                                    <th>Upload Date</th>
-                                    <th>Size</th>
-                                    <th>Records</th>
-                                    <th>Sheets</th>
-                                    <th>Status</th>
-                                </tr>
-                            </thead>
-                            <tbody></tbody>
-                        </table>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- AI Scheduler Section -->
-        <div id="scheduler" class="content-section active">
-            <div class="page-header">
-                <h1>AI Scheduler</h1>
-                <div class="filter-container">
-                    <select id="schedulerProjectFilter" class="form-control project-filter"><option value="all">Semua Proyek</option><option value="Petani Substation">Petani Substation</option><option value="Menggala Substation">Menggala Substation</option><option value="Nella Substation">Nella Substation</option><option value="Bangko Substation">Bangko Substation</option><option value="Balam SS">Balam SS</option><option value="Sintong SS">Sintong SS</option><option value="OKB Substation">OKB Substation</option></select>
-                </div>
-            </div>
-
-            <div class="scheduler-info-box">
-                <p>
-                    <strong>Info:</strong> AI Scheduler terintegrasi penuh dengan Excel. Upload file dengan sheet <strong>S_Curve</strong> dan <strong>Issues/Plans</strong> untuk data terlengkap. 
-                    S-Curve menampilkan format Week/Month, dan semua data difilter berdasarkan proyek yang dipilih.
+      <div class="excel-grid">
+        <div class="card upload-area">
+          <div class="card__body">
+            <div id="dropZone" class="drop-zone">
+              <div class="drop-zone-content">
+                <div class="drop-zone-icon">📁</div>
+                <p>Drag & drop file Excel di sini atau klik untuk browse</p>
+                <p style="font-size: var(--font-size-sm); color: var(--color-text-secondary);">
+                  File harus berisi sheet: <strong>Projects, S_Curve, Safety, Issues, Plans, Documents, Permits</strong>
                 </p>
+                <input type="file" id="fileInput" accept=".xlsx,.xls" style="display:none;">
+                <button class="btn btn--secondary" onclick="document.getElementById('fileInput').click()">Pilih File Excel</button>
+              </div>
             </div>
-
-            <div class="scheduler-grid">
-                <div class="chart-container" style="position: relative; height: 400px;">
-                    <h3>S-Curve Analysis</h3>
-                    <canvas id="sCurveChart" style="box-sizing: border-box; display: block; height: 300px; width: 1422px;" width="1067" height="225"></canvas>
-                </div>
-
-                <div class="scheduler-tables-grid">
-                    <div class="card">
-                        <div class="card__header">
-                            <h3>Issues Status</h3>
-                        </div>
-                        <div class="card__body">
-                            <div class="table-container">
-                                <table id="issuesTable">
-                                    <thead>
-                                        <tr>
-                                            <th>Issue ID</th>
-                                            <th>Project</th>
-                                            <th>Title</th>
-                                            <th>Priority</th>
-                                            <th>Status</th>
-                                            <th>Assigned To</th>
-                                            <th>Due Date</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody><tr><td colspan="7" class="table-loading">
-            Tidak ada issue untuk proyek OKB Substation
-        </td></tr></tbody>
-                                </table>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="card">
-                        <div class="card__header">
-                            <h3>Next Plans</h3>
-                        </div>
-                        <div class="card__body">
-                            <div class="table-container">
-                                <table id="plansTable">
-                                    <thead>
-                                        <tr>
-                                            <th>Plan ID</th>
-                                            <th>Project</th>
-                                            <th>Title</th>
-                                            <th>Priority</th>
-                                            <th>Status</th>
-                                            <th>Assigned To</th>
-                                            <th>Start Date</th>
-                                            <th>End Date</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody><tr><td colspan="8" class="table-loading">
-            Tidak ada plan untuk proyek OKB Substation
-        </td></tr></tbody>
-                                </table>
-                            </div>
-                        </div>
-                    </div>
-                </div>
+            <div id="uploadProgress" class="upload-progress" style="display:none;">
+              <div class="progress-bar"><div id="progressBar" class="progress-fill"></div></div>
+              <p id="progressText">Uploading... 0%</p>
             </div>
+            <div id="validationResults" class="validation-results"></div>
+          </div>
         </div>
 
-        <!-- Monitoring Safety Section -->
-        <div id="permits" class="content-section">
-            <div class="page-header">
-                <h1>Monitoring Safety</h1>
-                <div class="filter-container">
-                    <select id="safetyProjectFilter" class="form-control project-filter"><option value="all">Semua Proyek</option><option value="Petani Substation">Petani Substation</option><option value="Menggala Substation">Menggala Substation</option><option value="Nella Substation">Nella Substation</option><option value="Bangko Substation">Bangko Substation</option><option value="Balam SS">Balam SS</option><option value="Sintong SS">Sintong SS</option><option value="OKB Substation">OKB Substation</option></select>
-                </div>
+        <div class="card actions-card">
+          <div class="card__body">
+            <h3>Actions</h3>
+            <div class="action-buttons">
+              <a href="" class="btn btn--primary btn--full-width" target="_blank" download="Dashboard_Complete_Final.xlsx">📥 Download Template Lengkap</a>
+              <button class="btn btn--outline btn--full-width" onclick="downloadCurrentData()">📊 Download Data Saat Ini</button>
             </div>
-
-            <div class="permits-grid">
-                <div class="chart-container" style="position: relative; height: 300px;">
-                    <h3>Safety Pyramid</h3>
-                    <canvas id="safetyPyramidChart" style="display: block; box-sizing: border-box; height: 0px; width: 0px;" height="0" width="0"></canvas>
-                </div>
-
-                <div class="card">
-                    <div class="card__header">
-                        <h3>Active Permits</h3>
-                    </div>
-                    <div class="card__body">
-                        <div id="activePermitsList" class="permits-list"><div class="permit-item">
-            <div class="permit-header">
-                <span class="permit-id">PTW-2024-001</span>
-                <span class="permit-status open">Open</span>
+            <div class="template-info">
+              <strong>Template Lengkap berisi:</strong>
+              <ul>
+                <li><strong>Projects:</strong> Data proyek dengan Project_ID, Progress, Budget, Safety Score</li>
+                <li><strong>S_Curve:</strong> Data S-Curve dengan Week/Month labels untuk AI Scheduler</li>
+                <li><strong>Safety:</strong> Data safety dengan Total_Manpower dan Safe_Man_Hours</li>
+                <li><strong>Issues:</strong> Data issue dengan Project_ID mapping</li>
+                <li><strong>Plans:</strong> Data rencana dengan Project_ID mapping</li>
+                <li><strong>Documents:</strong> Data dokumen untuk Smart Document Search</li>
+                <li><strong>Permits:</strong> Data permit untuk monitoring</li>
+              </ul>
             </div>
-            <div class="permit-details">
-                <p><strong>Type:</strong> Hot Work</p>
-                <p><strong>Area:</strong> Petani Substation</p>
-                <p><strong>Contractor:</strong> PT Konstruksi ABC</p>
-                <p><strong>Issued:</strong> 2024-01-15</p>
-                <p><strong>Activity:</strong> Welding</p>
-            </div>
-        </div><div class="permit-item">
-            <div class="permit-header">
-                <span class="permit-id">PTW-2024-002</span>
-                <span class="permit-status open">Open</span>
-            </div>
-            <div class="permit-details">
-                <p><strong>Type:</strong> Confined Space</p>
-                <p><strong>Area:</strong> Menggala Substation</p>
-                <p><strong>Contractor:</strong> PT Engineering XYZ</p>
-                <p><strong>Issued:</strong> 2024-01-16</p>
-                <p><strong>Activity:</strong> Cable Installation</p>
-            </div>
-        </div></div>
-                    </div>
-                </div>
-
-                <div class="card safety-kpis">
-                    <div class="card__header">
-                        <h3>Safety KPIs</h3>
-                    </div>
-                    <div class="card__body">
-                        <div class="safety-metrics">
-                            <div class="metric-item">
-                                <div class="metric-value" id="totalManpower">180</div>
-                                <div class="metric-label">Total Manpower</div>
-                            </div>
-                            <div class="metric-item">
-                                <div class="metric-value" id="safeManHours">4,350</div>
-                                <div class="metric-label">Safe Man Hours</div>
-                            </div>
-                            <div class="metric-item">
-                                <div class="metric-value" id="incidentRate">-202.08%</div>
-                                <div class="metric-label">Incident Rate</div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Enhanced Safety Data Table -->
-            <div class="card" style="margin-top: 24px;">
-                <div class="card__header">
-                    <h3>Data Safety Details</h3>
-                </div>
-                <div class="card__body">
-                    <div class="table-container">
-                        <table id="safetyTable">
-                            <thead>
-                                <tr>
-                                    <th>Date</th>
-                                    <th>Project</th>
-                                    <th>Safety Score</th>
-                                    <th>Total Manpower</th>
-                                    <th>Safe Man Hours</th>
-                                    <th>Incidents</th>
-                                    <th>Status</th>
-                                </tr>
-                            </thead>
-                            <tbody><tr>
-            <td>2024-01-15</td>
-            <td>Petani Substation</td>
-            <td><span class="status status--success">95%</span></td>
-            <td>45</td>
-            <td>1,180</td>
-            <td>3</td>
-            <td><span class="status status--error">Needs Attention</span></td>
-        </tr><tr>
-            <td>2024-01-16</td>
-            <td>Menggala Substation</td>
-            <td><span class="status status--warning">92%</span></td>
-            <td>62</td>
-            <td>1,480</td>
-            <td>4</td>
-            <td><span class="status status--error">Needs Attention</span></td>
-        </tr><tr>
-            <td>2024-01-17</td>
-            <td>Nella Substation</td>
-            <td><span class="status status--success">97%</span></td>
-            <td>38</td>
-            <td>970</td>
-            <td>1</td>
-            <td><span class="status status--warning">Good</span></td>
-        </tr><tr>
-            <td>2024-01-18</td>
-            <td>Bangko Substation</td>
-            <td><span class="status status--error">89%</span></td>
-            <td>35</td>
-            <td>720</td>
-            <td>4</td>
-            <td><span class="status status--error">Needs Attention</span></td>
-        </tr></tbody>
-                        </table>
-                    </div>
-                </div>
-            </div>
+          </div>
         </div>
+      </div>
 
-        <!-- Smart Document Search Section -->
-        <div id="documents" class="content-section">
-            <div class="page-header">
-                <h1>Smart Document Search</h1>
-                <p style="color: var(--color-text-secondary); margin: 0;">Cari dokumen berdasarkan data dari Excel sheet <strong>Documents</strong></p>
-            </div>
-
-            <div class="search-controls">
-                <div class="search-bar">
-                    <input type="text" id="documentSearch" class="form-control" placeholder="Cari berdasarkan nama, tipe, project, atau keywords...">
-                    <button class="btn btn--primary" onclick="performDocumentSearch()">🔍</button>
-                </div>
-                <div class="search-filters">
-                    <select id="documentTypeFilter" class="form-control">
-                        <option value="all">Semua Tipe</option>
-                        <option value="Contract">Contract</option>
-                        <option value="Report">Report</option>
-                        <option value="Drawing">Drawing</option>
-                        <option value="Specification">Specification</option>
-                        <option value="Manual">Manual</option>
-                    </select>
-                    <select id="documentProjectFilter" class="form-control"><option value="all">Semua Project</option><option value="Petani Substation">Petani Substation</option><option value="Menggala Substation">Menggala Substation</option><option value="Nella Substation">Nella Substation</option><option value="Bangko Substation">Bangko Substation</option><option value="Balam SS">Balam SS</option><option value="Sintong SS">Sintong SS</option><option value="OKB Substation">OKB Substation</option></select>
-                </div>
-            </div>
-
-            <div id="searchResults" class="search-results-info">Menampilkan 5 dari 5 dokumen</div>
-
-            <div class="documents-grid" id="documentsGrid"><div class="document-card">
-            <div class="document-header">
-                <div class="document-icon">📋</div>
-                <h4 class="document-title">Petani Substation Contract</h4>
-            </div>
-            <div class="document-meta">
-                <span>Type: Contract</span>
-                <span>Size: 2.0 MB</span>
-                <span>Created: 2024-01-10</span>
-                <span>By: Contract Manager</span>
-            </div>
-            <div class="document-project">Petani Substation</div>
-            <div class="document-keywords">contract, construction, pertamina</div>
-        </div><div class="document-card">
-            <div class="document-header">
-                <div class="document-icon">📊</div>
-                <h4 class="document-title">Monthly Safety Report</h4>
-            </div>
-            <div class="document-meta">
-                <span>Type: Report</span>
-                <span>Size: 1.5 MB</span>
-                <span>Created: 2024-01-12</span>
-                <span>By: Safety Manager</span>
-            </div>
-            <div class="document-project">Menggala Substation</div>
-            <div class="document-keywords">safety, monthly, report, inspection</div>
-        </div><div class="document-card">
-            <div class="document-header">
-                <div class="document-icon">📝</div>
-                <h4 class="document-title">Technical Specification</h4>
-            </div>
-            <div class="document-meta">
-                <span>Type: Specification</span>
-                <span>Size: 3.0 MB</span>
-                <span>Created: 2024-01-08</span>
-                <span>By: Technical Lead</span>
-            </div>
-            <div class="document-project">Nella Substation</div>
-            <div class="document-keywords">technical, specification, electrical</div>
-        </div><div class="document-card">
-            <div class="document-header">
-                <div class="document-icon">📐</div>
-                <h4 class="document-title">Progress Drawing Rev-A</h4>
-            </div>
-            <div class="document-meta">
-                <span>Type: Drawing</span>
-                <span>Size: 4.0 MB</span>
-                <span>Created: 2024-01-15</span>
-                <span>By: Design Engineer</span>
-            </div>
-            <div class="document-project">Petani Substation</div>
-            <div class="document-keywords">drawing, progress, revision</div>
-        </div><div class="document-card">
-            <div class="document-header">
-                <div class="document-icon">📖</div>
-                <h4 class="document-title">Safety Manual</h4>
-            </div>
-            <div class="document-meta">
-                <span>Type: Manual</span>
-                <span>Size: 2.5 MB</span>
-                <span>Created: 2024-01-14</span>
-                <span>By: Safety Team</span>
-            </div>
-            <div class="document-project">Bangko Substation</div>
-            <div class="document-keywords">safety, manual, procedures</div>
-        </div></div>
+      <div class="card">
+        <div class="card__header"><h3>Upload History</h3></div>
+        <div class="card__body">
+          <div class="table-container">
+            <table id="uploadHistoryTable">
+              <thead>
+                <tr>
+                  <th>File Name</th><th>Upload Date</th><th>Size</th><th>Records</th><th>Sheets</th><th>Status</th>
+                </tr>
+              </thead>
+              <tbody></tbody>
+            </table>
+          </div>
         </div>
-
-        <!-- Report Generator Section -->
-        <div id="reports" class="content-section">
-            <div class="page-header">
-                <h1>Generator Laporan PowerPoint</h1>
-            </div>
-
-            <div class="reports-grid">
-                <div class="card">
-                    <div class="card__header">
-                        <h3>Konfigurasi Laporan</h3>
-                    </div>
-                    <div class="card__body">
-                        <div class="form-group">
-                            <label class="form-label">Tipe Laporan</label>
-                            <select id="reportType" class="form-control">
-                                <option value="daily">Daily Report</option>
-                                <option value="weekly">Weekly Report</option>
-                                <option value="monthly">Monthly Report</option>
-                                <option value="project">Project Report</option>
-                            </select>
-                        </div>
-                        <div class="form-group">
-                            <label class="form-label">Periode Dari</label>
-                            <input type="date" id="startDate" class="form-control">
-                        </div>
-                        <div class="form-group">
-                            <label class="form-label">Periode Sampai</label>
-                            <input type="date" id="endDate" class="form-control">
-                        </div>
-                        <div class="form-group">
-                            <label class="form-label">Proyek</label>
-                            <select id="reportProject" class="form-control"><option value="all">Semua Proyek</option><option value="Petani Substation">Petani Substation</option><option value="Menggala Substation">Menggala Substation</option><option value="Nella Substation">Nella Substation</option><option value="Bangko Substation">Bangko Substation</option><option value="Balam SS">Balam SS</option><option value="Sintong SS">Sintong SS</option><option value="OKB Substation">OKB Substation</option></select>
-                        </div>
-                        <button class="btn btn--primary btn--full-width" id="generateReport">
-                            📊 Generate PowerPoint Report
-                        </button>
-                    </div>
-                </div>
-
-                <div class="card">
-                    <div class="card__header">
-                        <h3>Preview Data</h3>
-                    </div>
-                    <div class="card__body">
-                        <div id="reportPreview" class="report-preview">
-                            <div class="preview-item">
-                                <strong>Total Proyek:</strong> <span id="previewProjects">7</span>
-                            </div>
-                            <div class="preview-item">
-                                <strong>Active Permits:</strong> <span id="previewPermits">2</span>
-                            </div>
-                            <div class="preview-item">
-                                <strong>Total Issues:</strong> <span id="previewIssues">4</span>
-                            </div>
-                            <div class="preview-item">
-                                <strong>Total Plans:</strong> <span id="previewPlans">4</span>
-                            </div>
-                            <div class="preview-item">
-                                <strong>Safety Score Rata-rata:</strong> <span id="previewSafety">94%</span>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <div class="card">
-                <div class="card__header">
-                    <h3>Generated Reports</h3>
-                </div>
-                <div class="card__body">
-                    <div class="table-container">
-                        <table id="reportsTable">
-                            <thead>
-                                <tr>
-                                    <th>File Name</th>
-                                    <th>Type</th>
-                                    <th>Project</th>
-                                    <th>Period</th>
-                                    <th>Created Date</th>
-                                    <th>Status</th>
-                                </tr>
-                            </thead>
-                            <tbody></tbody>
-                        </table>
-                    </div>
-                </div>
-            </div>
-        </div>
+      </div>
     </div>
 
-    <!-- Document Preview Modal -->
-    <div id="documentModal" class="modal hidden">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h3 id="modalTitle">Document Preview</h3>
-                <button class="modal-close" onclick="closeDocumentModal()">×</button>
-            </div>
-            <div class="modal-body">
-                <div id="documentPreview">
-                    <p>Preview konten dokumen akan ditampilkan di sini.</p>
-                </div>
-            </div>
+    <!-- AI Scheduler Section -->
+    <div id="scheduler" class="content-section">
+      <div class="page-header">
+        <h1>AI Scheduler</h1>
+        <div class="filter-container">
+          <select id="schedulerProjectFilter" class="form-control project-filter">
+            <option value="all">Semua Proyek</option>
+            <option value="Petani Substation">Petani Substation</option>
+            <option value="Menggala Substation">Menggala Substation</option>
+            <option value="Nella Substation">Nella Substation</option>
+            <option value="Bangko Substation">Bangko Substation</option>
+            <option value="Balam SS">Balam SS</option>
+            <option value="Sintong SS">Sintong SS</option>
+            <option value="OKB Substation">OKB Substation</option>
+          </select>
         </div>
+      </div>
+
+      <div class="scheduler-info-box">
+        <p><strong>Info:</strong> AI Scheduler terintegrasi penuh dengan Excel. Upload file dengan sheet <strong>S_Curve</strong> dan <strong>Issues/Plans</strong> untuk data terlengkap. S-Curve menampilkan format Week/Month, dan semua data difilter berdasarkan proyek yang dipilih.</p>
+      </div>
+
+      <div class="scheduler-grid">
+        <div class="chart-container" style="position: relative; height: 400px;">
+          <h3>S-Curve Analysis</h3>
+          <canvas id="sCurveChart"></canvas>
+        </div>
+
+        <div class="scheduler-tables-grid">
+          <div class="card">
+            <div class="card__header"><h3>Issues Status</h3></div>
+            <div class="card__body">
+              <div class="table-container">
+                <table id="issuesTable">
+                  <thead>
+                    <tr>
+                      <th>Issue ID</th><th>Project</th><th>Title</th><th>Priority</th><th>Status</th><th>Assigned To</th><th>Due Date</th>
+                    </tr>
+                  </thead>
+                  <tbody></tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card__header"><h3>Next Plans</h3></div>
+            <div class="card__body">
+              <div class="table-container">
+                <table id="plansTable">
+                  <thead>
+                    <tr>
+                      <th>Plan ID</th><th>Project</th><th>Title</th><th>Priority</th><th>Status</th><th>Assigned To</th><th>Start Date</th><th>End Date</th>
+                    </tr>
+                  </thead>
+                  <tbody></tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
 
-    <!-- Notification System -->
-    <div id="notifications" class="notifications-container"></div>
+    <!-- Monitoring Safety Section -->
+    <div id="permits" class="content-section">
+      <div class="page-header">
+        <h1>Monitoring Safety</h1>
+        <div class="filter-container">
+          <select id="safetyProjectFilter" class="form-control project-filter">
+            <option value="all">Semua Proyek</option>
+            <option value="Petani Substation">Petani Substation</option>
+            <option value="Menggala Substation">Menggala Substation</option>
+            <option value="Nella Substation">Nella Substation</option>
+            <option value="Bangko Substation">Bangko Substation</option>
+            <option value="Balam SS">Balam SS</option>
+            <option value="Sintong SS">Sintong SS</option>
+            <option value="OKB Substation">OKB Substation</option>
+          </select>
+        </div>
+      </div>
 
-    <!-- AI Assistant -->
-    <div id="chatbot" class="chatbot collapsed">
-        <div class="chatbot-header" onclick="toggleChatbot()">
-            <span>🤖 AI Assistant</span>
-            <span class="chatbot-toggle">▼</span>
+      <div class="permits-grid">
+        <div class="chart-container" style="position: relative; height: 300px;">
+          <h3>Safety Pyramid</h3>
+          <canvas id="safetyPyramidChart"></canvas>
         </div>
-        <div class="chatbot-content">
-            <div class="chat-messages" id="chatMessages">
-                <div class="message bot-message">
-                    Halo! Dashboard Pertamina sudah fully integrated. Upload Excel dengan 7 sheet untuk update semua data. PowerPoint reports dapat didownload dengan sempurna!
-                </div>
-            </div>
-            <div class="quick-questions">
-                <button class="quick-question" onclick="askQuestion(&#39;Cara upload Excel?&#39;)">
-                    Cara upload Excel?
-                </button>
-                <button class="quick-question" onclick="askQuestion(&#39;Status safety terbaru?&#39;)">
-                    Status safety terbaru?
-                </button>
-                <button class="quick-question" onclick="askQuestion(&#39;Generate report PowerPoint?&#39;)">
-                    Generate report PowerPoint?
-                </button>
-            </div>
-            <div class="chat-input">
-                <input type="text" id="chatInput" placeholder="Ketik pesan Anda..." onkeypress="handleChatInput(event)">
-                <button onclick="sendChatMessage()">📤</button>
-            </div>
+
+        <div class="card">
+          <div class="card__header"><h3>Active Permits</h3></div>
+          <div class="card__body"><div id="activePermitsList" class="permits-list"></div></div>
         </div>
+
+        <div class="card safety-kpis">
+          <div class="card__header"><h3>Safety KPIs</h3></div>
+          <div class="card__body">
+            <div class="safety-metrics">
+              <div class="metric-item">
+                <div class="metric-value" id="totalManpower">0</div>
+                <div class="metric-label">Total Manpower</div>
+              </div>
+              <div class="metric-item">
+                <div class="metric-value" id="safeManHours">0</div>
+                <div class="metric-label">Safe Man Hours</div>
+              </div>
+              <div class="metric-item">
+                <div class="metric-value" id="incidentRate">0%</div>
+                <div class="metric-label">Incident Rate</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card" style="margin-top: 24px;">
+        <div class="card__header"><h3>Data Safety Details</h3></div>
+        <div class="card__body">
+          <div class="table-container">
+            <table id="safetyTable">
+              <thead>
+                <tr>
+                  <th>Date</th><th>Project</th><th>Safety Score</th><th>Total Manpower</th><th>Safe Man Hours</th><th>Incidents</th><th>Status</th>
+                </tr>
+              </thead>
+              <tbody></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
     </div>
 
-    <script src="app.js"></script>
+    <!-- Smart Document Search Section -->
+    <div id="documents" class="content-section">
+      <div class="page-header">
+        <h1>Smart Document Search</h1>
+        <p style="color: var(--color-text-secondary); margin: 0;">Cari dokumen berdasarkan data dari Excel sheet <strong>Documents</strong></p>
+      </div>
 
-</body><grammarly-desktop-integration data-grammarly-shadow-root="true"><template shadowrootmode="open"><style>
-      div.grammarly-desktop-integration {
-        position: absolute;
-        width: 1px;
-        height: 1px;
-        padding: 0;
-        margin: -1px;
-        overflow: hidden;
-        clip: rect(0, 0, 0, 0);
-        white-space: nowrap;
-        border: 0;
-        -moz-user-select: none;
-        -webkit-user-select: none;
-        -ms-user-select:none;
-        user-select:none;
+      <div class="search-controls">
+        <div class="search-bar">
+          <input type="text" id="documentSearch" class="form-control" placeholder="Cari berdasarkan nama, tipe, project, atau keywords...">
+          <button class="btn btn--primary" onclick="performDocumentSearch()">🔍</button>
+        </div>
+        <div class="search-filters">
+          <select id="documentTypeFilter" class="form-control">
+            <option value="all">Semua Tipe</option>
+            <option value="Contract">Contract</option>
+            <option value="Report">Report</option>
+            <option value="Drawing">Drawing</option>
+            <option value="Specification">Specification</option>
+            <option value="Manual">Manual</option>
+          </select>
+          <select id="documentProjectFilter" class="form-control">
+            <option value="all">Semua Project</option>
+            <option value="Petani Substation">Petani Substation</option>
+            <option value="Menggala Substation">Menggala Substation</option>
+            <option value="Nella Substation">Nella Substation</option>
+            <option value="Bangko Substation">Bangko Substation</option>
+            <option value="Balam SS">Balam SS</option>
+            <option value="Sintong SS">Sintong SS</option>
+            <option value="OKB Substation">OKB Substation</option>
+          </select>
+        </div>
+      </div>
+
+      <div id="searchResults" class="search-results-info">Menampilkan 0 dokumen</div>
+      <div class="documents-grid" id="documentsGrid"></div>
+    </div>
+
+    <!-- Report Generator Section -->
+    <div id="reports" class="content-section">
+      <div class="page-header"><h1>Generator Laporan PowerPoint</h1></div>
+
+      <div class="reports-grid">
+        <div class="card">
+          <div class="card__header"><h3>Konfigurasi Laporan</h3></div>
+          <div class="card__body">
+            <div class="form-group">
+              <label class="form-label">Tipe Laporan</label>
+              <select id="reportType" class="form-control">
+                <option value="daily">Daily Report</option>
+                <option value="weekly">Weekly Report</option>
+                <option value="monthly">Monthly Report</option>
+                <option value="project">Project Report</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Periode Dari</label>
+              <input type="date" id="startDate" class="form-control">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Periode Sampai</label>
+              <input type="date" id="endDate" class="form-control">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Proyek</label>
+              <select id="reportProject" class="form-control">
+                <option value="all">Semua Proyek</option>
+                <option value="Petani Substation">Petani Substation</option>
+                <option value="Menggala Substation">Menggala Substation</option>
+                <option value="Nella Substation">Nella Substation</option>
+                <option value="Bangko Substation">Bangko Substation</option>
+                <option value="Balam SS">Balam SS</option>
+                <option value="Sintong SS">Sintong SS</option>
+                <option value="OKB Substation">OKB Substation</option>
+              </select>
+            </div>
+            <button class="btn btn--primary btn--full-width" id="generateReport">📊 Generate PowerPoint Report</button>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card__header"><h3>Preview Data</h3></div>
+          <div class="card__body">
+            <div id="reportPreview" class="report-preview">
+              <div class="preview-item"><strong>Total Proyek:</strong> <span id="previewProjects">0</span></div>
+              <div class="preview-item"><strong>Active Permits:</strong> <span id="previewPermits">0</span></div>
+              <div class="preview-item"><strong>Total Issues:</strong> <span id="previewIssues">0</span></div>
+              <div class="preview-item"><strong>Total Plans:</strong> <span id="previewPlans">0</span></div>
+              <div class="preview-item"><strong>Safety Score Rata-rata:</strong> <span id="previewSafety">0%</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card__header"><h3>Generated Reports</h3></div>
+        <div class="card__body">
+          <div class="table-container">
+            <table id="reportsTable">
+              <thead>
+                <tr>
+                  <th>File Name</th><th>Type</th><th>Project</th><th>Period</th><th>Created Date</th><th>Status</th>
+                </tr>
+              </thead>
+              <tbody></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div> <!-- /.main-content -->
+
+  <!-- Document Preview Modal -->
+  <div id="documentModal" class="modal hidden">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3 id="modalTitle">Document Preview</h3>
+        <button class="modal-close" onclick="closeDocumentModal()">×</button>
+      </div>
+      <div class="modal-body">
+        <div id="documentPreview">
+          <p>Preview konten dokumen akan ditampilkan di sini.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Notification System -->
+  <div id="notifications" class="notifications-container"></div>
+
+  <!-- AI Assistant -->
+  <div id="chatbot" class="chatbot collapsed">
+    <div class="chatbot-header" onclick="toggleChatbot()">
+      <span>🤖 AI Assistant</span>
+      <span class="chatbot-toggle">▼</span>
+    </div>
+    <div class="chatbot-content">
+      <div class="chat-messages" id="chatMessages">
+        <div class="message bot-message">
+          Halo! Dashboard Pertamina sudah fully integrated. Upload Excel dengan 7 sheet untuk update semua data. PowerPoint reports dapat didownload dengan sempurna!
+        </div>
+      </div>
+      <div class="quick-questions">
+        <button class="quick-question" onclick="askQuestion('Cara upload Excel?')">Cara upload Excel?</button>
+        <button class="quick-question" onclick="askQuestion('Status safety terbaru?')">Status safety terbaru?</button>
+        <button class="quick-question" onclick="askQuestion('Generate report PowerPoint?')">Generate report PowerPoint?</button>
+      </div>
+      <div class="chat-input">
+        <input type="text" id="chatInput" placeholder="Ketik pesan Anda..." onkeypress="handleChatInput(event)">
+        <button onclick="sendChatMessage()">📤</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- App code -->
+  <script src="app.js"></script>
+
+  <!-- SPA Guard (hindari redirect ke S3 / index.html#...) -->
+  <script>
+    document.addEventListener('click', function (e) {
+      const a = e.target.closest('a[href]');
+      if (!a) return;
+      const href = (a.getAttribute('href') || '').trim();
+      const section = a.getAttribute('data-section');
+      if (section) { e.preventDefault(); try { window.switchSection(section); } catch (err) {} return; }
+      if (href.startsWith('#')) { e.preventDefault(); try { window.switchSection(href.slice(1)||'overview'); } catch (err) {} return; }
+      if (/ppl-ai-code-interpreter-files\.s3\.amazonaws\.com/i.test(href) || /index\.html#/.test(href)) {
+        e.preventDefault();
+        const target = (href.split('#')[1] || 'overview');
+        try { window.switchSection(target); } catch (err) {}
       }
-
-      div.grammarly-desktop-integration:before {
-        content: attr(data-content);
-      }
-    </style><div aria-label="grammarly-integration" role="group" tabindex="-1" class="grammarly-desktop-integration" data-content="{&quot;mode&quot;:&quot;full&quot;,&quot;isActive&quot;:true,&quot;isUserDisabled&quot;:false}"></div></template></grammarly-desktop-integration></html>
+    });
+  </script>
+</body>
+</html>
