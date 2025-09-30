@@ -915,15 +915,21 @@ function addDividerSlide(pptx, title, logos = {}) {
 
   return s;
 }
+// --- PPTX helper: dukung berbagai nama global (PptxGenJS / pptxgen / PptxGen) ---
+function createPptxInstance() {
+  const Ctor = window.PptxGenJS || window.pptxgen || window.PptxGen;
+  return Ctor ? new Ctor() : null;
+}
 
 // ====== GENERATOR PPT – DESAIN BARU (replace fungsi lama ini 1:1) ======
 async function generatePowerPointReport(type, project, startDate, endDate) {
   try {
-    if (typeof PptxGenJS === 'undefined') {
-      showNotification('PowerPoint library not loaded. Generating fallback report...', 'warning');
-      generateFallbackReport(type, project, startDate, endDate);
-      return;
-    }
+    const pptx = createPptxInstance();
+if (!pptx) { 
+  showNotification('PptxGenJS belum ter-load. Pastikan <script src="pptxgen.bundle.js"> diletakkan SEBELUM app.js.', 'error'); 
+  return; 
+}
+
 
     // Load aset (pakai dataURL agar aman di GitHub Pages)
     const [coverImg, logoPertamina, logoDanan] = await Promise.all([
