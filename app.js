@@ -846,6 +846,90 @@ function closeDocumentModal() {
 /* --------------------------
    9) REPORTS / PPTX
    -------------------------- */
+/* ===========================
+   COVER THEME (BARU – tempel di atas generatePowerPointReport)
+   =========================== */
+const BRAND = {
+  coverBgPath: "assets/cover_weekly.png",      // gambar cover
+  logoLeftPath: "assets/logo_danan.png",       // logo kiri
+  logoRightPath: "assets/logo_pertamina.png",  // logo kanan
+  cWhite: "FFFFFF",
+  cOverlay: "000000",
+  cTitle: "FFFFFF",
+  titleSize: 40,
+  subSize: 30,
+  periodSize: 30
+};
+
+// slide 16:9 di PptxGenJS = 13.33" × 7.5"
+function addCoverSlide(pptx, title, subTitle, periodText) {
+  const SLIDE_W = 13.33, SLIDE_H = 7.5;
+  const s = pptx.addSlide();
+
+  // 1) Background full-bleed
+  s.background = { path: BRAND.coverBgPath };
+
+  // 2) Logo pills (rounded putih)
+  const pillW = 3.40, pillH = 0.90, pillY = 0.35, pillRadius = 22;
+  // Kiri
+  s.addShape(pptx.shapes.ROUNDED_RECTANGLE, {
+    x: 0.35, y: pillY, w: pillW, h: pillH,
+    fill: { color: BRAND.cWhite }, line: { color: BRAND.cWhite },
+    rectRadius: pillRadius,
+    shadow: { type: 'outer', angle: 45, blur: 2, offset: 0.06, color: "000000", opacity: 0.25 }
+  });
+  s.addImage({
+    path: BRAND.logoLeftPath,
+    x: 0.55, y: pillY + 0.04, w: pillW - 0.5, h: pillH - 0.08,
+    sizing: { type: "contain", w: pillW - 0.5, h: pillH - 0.08 }
+  });
+  // Kanan
+  const rightX = SLIDE_W - 0.35 - pillW;
+  s.addShape(pptx.shapes.ROUNDED_RECTANGLE, {
+    x: rightX, y: pillY, w: pillW, h: pillH,
+    fill: { color: BRAND.cWhite }, line: { color: BRAND.cWhite },
+    rectRadius: pillRadius,
+    shadow: { type: 'outer', angle: 45, blur: 2, offset: 0.06, color: "000000", opacity: 0.25 }
+  });
+  s.addImage({
+    path: BRAND.logoRightPath,
+    x: rightX + 0.22, y: pillY + 0.04, w: pillW - 0.44, h: pillH - 0.08,
+    sizing: { type: "contain", w: pillW - 0.44, h: pillH - 0.08 }
+  });
+
+  // 3) Overlay transparan tengah
+  const boxW = 10.8, boxH = 2.40;
+  const boxX = (SLIDE_W - boxW) / 2;
+  const boxY = 2.00;
+  s.addShape(pptx.shapes.RECTANGLE, {
+    x: boxX, y: boxY, w: boxW, h: boxH,
+    fill: { color: BRAND.cOverlay, transparency: 35 },
+    line: { color: BRAND.cOverlay, transparency: 100 }
+  });
+
+  // 4) Teks
+  const textX = boxX + 0.40;
+  const shadow = { type: 'outer', angle: 45, blur: 3, offset: 0.06, color: "000000", opacity: 0.8 };
+
+  s.addText(title || "Construction Weekly Report", {
+    x: textX, y: boxY + 0.20, w: boxW - 0.8, h: 0.9,
+    fontSize: BRAND.titleSize, bold: true, color: BRAND.cTitle, shadow
+  });
+
+  if (subTitle) {
+    s.addText(subTitle, {
+      x: textX, y: boxY + 0.95, w: boxW - 0.8, h: 0.7,
+      fontSize: BRAND.subSize, bold: true, color: BRAND.cTitle, shadow
+    });
+  }
+  if (periodText) {
+    s.addText(`Period: ${periodText}`, {
+      x: textX, y: boxY + 1.65, w: boxW - 0.8, h: 0.7,
+      fontSize: BRAND.periodSize, bold: true, color: BRAND.cTitle, shadow
+    });
+  }
+}
+
 function initializeReports() {
   updateReportsTable();
   setupReportGeneration();
@@ -974,6 +1058,35 @@ function generatePowerPointReport(type, project, startDate, endDate) {
       generateFallbackReport(type, project, startDate, endDate);
       return;
     }
+
+    const pptx = new PptxGenJS();
+    pptx.layout = "LAYOUT_16x9";
+    pptx.author = 'Pertamina Construction Dashboard';
+    pptx.company = 'Pertamina';
+    pptx.title = `Pertamina Construction ${type.charAt(0).toUpperCase() + type.slice(1)} Report`;
+
+    const periodText = `${startDate || '-'} to ${endDate || '-'}`;
+    const projectLabel = project === 'all' ? 'Semua Proyek' : project;
+
+    // SLIDE 1: COVER
+    addCoverSlide(pptx,
+      `Construction ${type.charAt(0).toUpperCase() + type.slice(1)} Report`,
+      projectLabel,
+      periodText
+    );
+
+    // nanti disini kita isi slide Executive Summary, Project Details, Safety Summary
+
+    const fileName = `Pertamina_${type}_Report_${new Date().toISOString().split('T')[0]}.pptx`;
+    pptx.writeFile({ fileName });
+    showNotification('PowerPoint report berhasil didownload!', 'success');
+  } catch (error) {
+    console.error('Error generating PowerPoint:', error);
+    showNotification('Error generating PowerPoint: ' + error.message, 'error');
+    generateFallbackReport(type, project, startDate, endDate);
+  }
+}
+
 
     const pptx = new PptxGenJS();
     pptx.layout = "LAYOUT_16x9";
