@@ -87,7 +87,7 @@ function getStatusClass(status) {
 }
 
 // =========================
-// Initial sample data (unchanged)
+// Initial sample data (UNCHANGED / FULL)
 // =========================
 const initialData = {
     projects: [
@@ -417,7 +417,7 @@ function completeExcelUpload(file, totalRecords, processedSheets) {
         AppState.data.uploadHistory.unshift(uploadRecord);
         updateUploadHistory();
 
-        // Cleanup unknowns (optional but tidy)
+        // Cleanup unknowns
         ['sCurveData','safety','issues','plans','documents','permits'].forEach(k => {
             AppState.data[k] = (AppState.data[k] || []).filter(r => r.Project_ID && r.Project_ID !== 'PROJ_UNKNOWN');
         });
@@ -425,7 +425,7 @@ function completeExcelUpload(file, totalRecords, processedSheets) {
         // Rebuild maps and refresh UI
         buildProjectMaps();
         setupProjectFilters();
-        setupDocumentFilters(); // ensure Documents project filter refreshed
+        setupDocumentFilters();
 
         updateOverviewContent();
         updateSchedulerContent();
@@ -817,136 +817,224 @@ function closeDocumentModal() {
     const modal = document.getElementById('documentModal');
     modal.classList.add('hidden');
 }
-
+// =========================
 // Reports / PPTX
+// =========================
+
+// ---- Assets base & helper (pastikan folder sesuai) ----
+const ASSETS_BASE = './assets'; // ganti bila asetmu di path lain
+
+async function imgToDataURL(url) {
+  const res = await fetch(url, { cache: 'no-store' });
+  if (!res.ok) throw new Error(`Gagal memuat gambar: ${url}`);
+  const blob = await res.blob();
+  return new Promise((resolve) => {
+    const fr = new FileReader();
+    fr.onload = () => resolve(fr.result);
+    fr.readAsDataURL(blob);
+  });
+}
+
 function initializeReports() {
-    updateReportsTable();
-    setupReportGeneration();
-    setupDateInputs();
-    updateReportPreview();
+  updateReportsTable();
+  setupReportGeneration();
+  setupDateInputs();
+  updateReportPreview();
 }
 
 function setupDateInputs() {
-    const today = new Date();
-    const twoWeeksAgo = new Date(today.getTime() - (14 * 24 * 60 * 60 * 1000));
-    document.getElementById('startDate').value = twoWeeksAgo.toISOString().split('T')[0];
-    document.getElementById('endDate').value = today.toISOString().split('T')[0];
+  const today = new Date();
+  const twoWeeksAgo = new Date(today.getTime() - (14 * 24 * 60 * 60 * 1000));
+  document.getElementById('startDate').value = twoWeeksAgo.toISOString().split('T')[0];
+  document.getElementById('endDate').value = today.toISOString().split('T')[0];
 }
 
 function setupReportGeneration() {
-    const generateBtn = document.getElementById('generateReport');
-    generateBtn.addEventListener('click', generateReport);
+  const generateBtn = document.getElementById('generateReport');
+  if (generateBtn) generateBtn.addEventListener('click', generateReport);
 }
 
 function updateReportPreview() {
-    const totalProjects = AppState.data.projects.length;
-    const activePermits = AppState.data.permits.filter(p => p.Status === 'Open').length;
-    const totalIssues = AppState.data.issues.length;
-    const totalPlans = AppState.data.plans.length;
-    const avgSafety = totalProjects > 0 
-        ? Math.round(AppState.data.projects.reduce((sum, p) => sum + p.Safety_Score, 0) / totalProjects)
-        : 0;
-    document.getElementById('previewProjects').textContent = totalProjects;
-    document.getElementById('previewPermits').textContent = activePermits;
-    document.getElementById('previewIssues').textContent = totalIssues;
-    document.getElementById('previewPlans').textContent = totalPlans;
-    document.getElementById('previewSafety').textContent = avgSafety + '%';
+  const totalProjects = AppState.data.projects.length;
+  const activePermits = AppState.data.permits.filter(p => p.Status === 'Open').length;
+  const totalIssues = AppState.data.issues.length;
+  const totalPlans = AppState.data.plans.length;
+  const avgSafety = totalProjects > 0 
+    ? Math.round(AppState.data.projects.reduce((sum, p) => sum + (p.Safety_Score || 0), 0) / totalProjects)
+    : 0;
+  document.getElementById('previewProjects').textContent = totalProjects;
+  document.getElementById('previewPermits').textContent = activePermits;
+  document.getElementById('previewIssues').textContent = totalIssues;
+  document.getElementById('previewPlans').textContent = totalPlans;
+  document.getElementById('previewSafety').textContent = avgSafety + '%';
 }
 
 function generateReport() {
-    const type = document.getElementById('reportType').value;
-    const startDate = document.getElementById('startDate').value;
-    const endDate = document.getElementById('endDate').value;
-    const project = document.getElementById('reportProject').value;
+  const type = document.getElementById('reportType').value;
+  const startDate = document.getElementById('startDate').value;
+  const endDate = document.getElementById('endDate').value;
+  const project = document.getElementById('reportProject').value;
 
-    showNotification('Generating PowerPoint report...', 'info');
-    generatePowerPointReport(type, project, startDate, endDate);
+  showNotification('Generating PowerPoint report...', 'info');
+  generatePowerPointReport(type, project, startDate, endDate);
 
-    const reportRecord = {
-        fileName: `Pertamina_${type}_Report_${startDate}_${endDate}.pptx`,
-        type: type,
-        project: project === 'all' ? 'Semua Proyek' : project,
-        period: `${startDate} to ${endDate}`,
-        createdDate: new Date().toLocaleString('id-ID'),
-        status: 'Generated'
-    };
-    AppState.data.generatedReports = AppState.data.generatedReports || [];
-    AppState.data.generatedReports.unshift(reportRecord);
-    updateReportsTable();
+  const reportRecord = {
+    fileName: `Pertamina_${type}_Report_${startDate}_${endDate}.pptx`,
+    type: type,
+    project: project === 'all' ? 'Semua Proyek' : project,
+    period: `${startDate} to ${endDate}`,
+    createdDate: new Date().toLocaleString('id-ID'),
+    status: 'Generated'
+  };
+  AppState.data.generatedReports = AppState.data.generatedReports || [];
+  AppState.data.generatedReports.unshift(reportRecord);
+  updateReportsTable();
 }
 
-function generatePowerPointReport(type, project, startDate, endDate) {
-    try {
-        if (typeof PptxGenJS === 'undefined') {
-            showNotification('PowerPoint library not loaded. Generating fallback report...', 'warning');
-            generateFallbackReport(type, project, startDate, endDate);
-            return;
-        }
-        const pptx = new PptxGenJS();
-        pptx.author = 'Pertamina Construction Dashboard';
-        pptx.company = 'Pertamina';
-        pptx.title = `Pertamina Construction ${type.charAt(0).toUpperCase() + type.slice(1)} Report`;
-        const filteredProjects = project === 'all' ? AppState.data.projects : AppState.data.projects.filter(p => p.Project_Name === project);
-
-        let slide1 = pptx.addSlide();
-        slide1.addText('PERTAMINA', { x: 0.5, y: 0.5, w: 9, h: 1, fontSize: 32, bold: true, color: '1F4E5C', align: 'center' });
-        slide1.addText(`Construction ${type.charAt(0).toUpperCase() + type.slice(1)} Report`, { x: 1, y: 2, w: 8, h: 1.5, fontSize: 28, bold: true, color: '21808D', align: 'center' });
-        slide1.addText(project === 'all' ? 'Semua Proyek' : project, { x: 1, y: 3.5, w: 8, h: 1, fontSize: 24, color: '626C71', align: 'center' });
-        slide1.addText(`Period: ${startDate} to ${endDate}`, { x: 1, y: 4.5, w: 8, h: 1, fontSize: 18, color: '626C71', align: 'center' });
-        slide1.addText('Generated by Construction Dashboard AI', { x: 1, y: 6, w: 8, h: 0.5, fontSize: 14, color: '626C71', align: 'center' });
-
-        let slide2 = pptx.addSlide();
-        slide2.addText('Executive Summary', { x: 0.5, y: 0.5, w: 9, h: 1, fontSize: 24, bold: true, color: '1F4E5C' });
-        const totalProjects = filteredProjects.length;
-        const avgProgress = totalProjects > 0 ? Math.round(filteredProjects.reduce((sum, p) => sum + p.Progress_Percent, 0) / totalProjects) : 0;
-        const avgSafety = totalProjects > 0 ? Math.round(filteredProjects.reduce((sum, p) => sum + p.Safety_Score, 0) / totalProjects) : 0;
-        const activePermits = AppState.data.permits.filter(p => p.Status === 'Open').length;
-        slide2.addText(`Total Projects: ${totalProjects}`, { x: 1, y: 2, w: 8, h: 0.5, fontSize: 16 });
-        slide2.addText(`Average Progress: ${avgProgress}%`, { x: 1, y: 2.5, w: 8, h: 0.5, fontSize: 16 });
-        slide2.addText(`Average Safety Score: ${avgSafety}%`, { x: 1, y: 3, w: 8, h: 0.5, fontSize: 16 });
-        slide2.addText(`Active Permits: ${activePermits}`, { x: 1, y: 3.5, w: 8, h: 0.5, fontSize: 16 });
-        slide2.addText(`Generated: ${new Date().toLocaleString('id-ID')}`, { x: 1, y: 4, w: 8, h: 0.5, fontSize: 14, color: '626C71' });
-
-        let slide3 = pptx.addSlide();
-        slide3.addText('Project Details', { x: 0.5, y: 0.5, w: 9, h: 1, fontSize: 24, bold: true, color: '1F4E5C' });
-        const projectTableData = [[
-            { text: 'Project Name', options: { bold: true, color: '1F4E5C' } },
-            { text: 'Progress %', options: { bold: true, color: '1F4E5C' } },
-            { text: 'Safety Score', options: { bold: true, color: '1F4E5C' } },
-            { text: 'Budget Used %', options: { bold: true, color: '1F4E5C' } }
-        ]];
-        filteredProjects.slice(0, 6).forEach(project => {
-            projectTableData.push([
-                { text: project.Project_Name.replace(' Substation', ''), options: { fontSize: 12 } },
-                { text: `${project.Progress_Percent}%`, options: { fontSize: 12 } },
-                { text: `${project.Safety_Score}%`, options: { fontSize: 12 } },
-                { text: `${project.Budget_Used_Percent}%`, options: { fontSize: 12 } }
-            ]);
-        });
-        slide3.addTable(projectTableData, { x: 1, y: 2, w: 8, h: 4, border: { type: 'solid', color: '1F4E5C', pt: 1 } });
-
-        let slide4 = pptx.addSlide();
-        slide4.addText('Safety Analysis', { x: 0.5, y: 0.5, w: 9, h: 1, fontSize: 24, bold: true, color: '1F4E5C' });
-        const totalManpower = AppState.data.safety.reduce((sum, item) => sum + (item.Total_Manpower || 0), 0);
-        const safeManHours = AppState.data.safety.reduce((sum, item) => sum + (item.Safe_Man_Hours || 0), 0);
-        slide4.addText(`Total Manpower: ${totalManpower.toLocaleString()}`, { x: 1, y: 2, w: 8, h: 0.5, fontSize: 16 });
-        slide4.addText(`Safe Man Hours: ${safeManHours.toLocaleString()}`, { x: 1, y: 2.5, w: 8, h: 0.5, fontSize: 16 });
-        slide4.addText(`Total Issues: ${AppState.data.issues.length}`, { x: 1, y: 3, w: 8, h: 0.5, fontSize: 16 });
-        slide4.addText(`Total Plans: ${AppState.data.plans.length}`, { x: 1, y: 3.5, w: 8, h: 0.5, fontSize: 16 });
-
-        const fileName = `Pertamina_${type}_Report_${new Date().toISOString().split('T')[0]}.pptx`;
-        pptx.writeFile({ fileName });
-        showNotification('PowerPoint report berhasil didownload!', 'success');
-    } catch (error) {
-        console.error('Error generating PowerPoint:', error);
-        showNotification('Error generating PowerPoint: ' + error.message, 'error');
-        generateFallbackReport(type, project, startDate, endDate);
+// ==== PPT GENERATOR (DESAIN BARU) ====
+async function generatePowerPointReport(type, project, startDate, endDate) {
+  try {
+    if (typeof PptxGenJS === 'undefined') {
+      showNotification('PowerPoint library not loaded. Generating fallback report...', 'warning');
+      generateFallbackReport(type, project, startDate, endDate);
+      return;
     }
+
+    // Preload assets -> dataURL (aman untuk GitHub Pages)
+    const [coverImg, logoPertamina, logoDanan] = await Promise.all([
+      imgToDataURL(`${ASSETS_BASE}/cover_weekly.png`).catch(() => null),
+      imgToDataURL(`${ASSETS_BASE}/logo_pertamina.png`).catch(() => null),
+      imgToDataURL(`${ASSETS_BASE}/logo_danan.png`).catch(() => null),
+    ]);
+
+    const pptx = new PptxGenJS();
+    pptx.layout = 'LAYOUT_16x9';
+    pptx.author = 'Pertamina Construction Dashboard';
+    pptx.company = 'Pertamina';
+    pptx.title = `Pertamina Construction ${type?.charAt(0).toUpperCase() + type?.slice(1)} Report`;
+
+    // Filter data sesuai pilihan project
+    const selected = project === 'all'
+      ? AppState.data.projects
+      : AppState.data.projects.filter(p => p.Project_Name === project);
+    const baseProjects = selected.length ? selected : AppState.data.projects;
+
+    const totalProjects = baseProjects.length;
+    const avgProgress = totalProjects ? Math.round(baseProjects.reduce((s,p)=>s+(p.Progress_Percent||0),0)/totalProjects) : 0;
+    const avgSafety   = totalProjects ? Math.round(baseProjects.reduce((s,p)=>s+(p.Safety_Score||0),0)/totalProjects)   : 0;
+    const activePermits = AppState.data.permits.filter(p=>p.Status==='Open').length;
+    const totalManpower = AppState.data.safety.reduce((sum,i)=>sum+(i.Total_Manpower||0),0);
+    const safeManHours  = AppState.data.safety.reduce((sum,i)=>sum+(i.Safe_Man_Hours||0),0);
+
+    // ---------- Slide 1: COVER ----------
+    {
+      const s = pptx.addSlide();
+      // ukuran slide 16:9 = 10 x 5.63 inci
+      if (coverImg) s.addImage({ data: coverImg, x: 0,   y: 0,   w: 10,  h: 5.63 });
+      if (logoPertamina) s.addImage({ data: logoPertamina, x: 8.7, y: 0.2, w: 1.1, h: 1.1 });
+      if (logoDanan)     s.addImage({ data: logoDanan,     x: 0.2, y: 0.2, w: 1.7, h: 1.1 });
+
+      // overlay transparan untuk kontras teks
+      s.addShape(pptx.ShapeType.rect, { x: 1.0, y: 0.6, w: 8.0, h: 2.3, fill: { color: '2E6F86', transparency: 35 } });
+      s.addText('Construction Weekly Report',                 { x: 1.2, y: 0.8,  w: 7.6, h: 0.8, fontSize: 28, bold: true, color: 'FFFFFF' });
+      s.addText(project === 'all' ? 'Semua Proyek' : project, { x: 1.2, y: 1.6,  w: 7.6, h: 0.6, fontSize: 24, bold: true, color: 'FFFFFF' });
+      s.addText(`Period: ${startDate} to ${endDate}`,         { x: 1.2, y: 2.2,  w: 7.6, h: 0.6, fontSize: 20, bold: true, color: 'FFFFFF' });
+    }
+
+    // helper divider
+    const addDivider = (title) => {
+      const s = pptx.addSlide({ bkgd: 'BFBFBF' });
+      if (logoPertamina) s.addImage({ data: logoPertamina, x: 8.7, y: 0.2, w: 1.1, h: 1.1 });
+      if (logoDanan)     s.addImage({ data: logoDanan,     x: 0.2, y: 0.2, w: 1.7, h: 1.1 });
+      s.addShape(pptx.ShapeType.rect, { x: 2, y: 2.2, w: 6, h: 1.2, fill: 'FFFFFF' });
+      s.addText(title, { x: 2, y: 2.2, w: 6, h: 1.2, fontSize: 28, align: 'center', bold: true, color: '1F4E5C' });
+    };
+
+    // ---------- Slide 2: EXECUTIVE SUMMARY (Divider) ----------
+    addDivider('Executive Summary');
+
+    // ---------- Slide 3: EXECUTIVE SUMMARY CONTENT ----------
+    {
+      const s = pptx.addSlide();
+      if (logoPertamina) s.addImage({ data: logoPertamina, x: 8.7, y: 0.2, w: 1.1, h: 1.1 });
+      if (logoDanan)     s.addImage({ data: logoDanan,     x: 0.2, y: 0.2, w: 1.7, h: 1.1 });
+
+      const lines = [
+        `Total Projects: ${totalProjects}`,
+        `Average Progress: ${avgProgress}%`,
+        `Average Safety Score: ${avgSafety}%`,
+        `Active Permits: ${activePermits}`,
+        `Generated: ${new Date().toLocaleString('id-ID')}`
+      ];
+      s.addText(lines.join('\n\n'), { x: 1.0, y: 2.0, w: 8.0, h: 3.2, fontSize: 22, color: '1F4E5C' });
+    }
+
+    // ---------- Slide 4: PROGRESS DETAILS (Divider) ----------
+    addDivider('Progress Project Details');
+
+    // ---------- Slide 5: PROJECT TABLE ----------
+    {
+      const s = pptx.addSlide();
+      if (logoPertamina) s.addImage({ data: logoPertamina, x: 8.7, y: 0.2, w: 1.1, h: 1.1 });
+      if (logoDanan)     s.addImage({ data: logoDanan,     x: 0.2, y: 0.2, w: 1.7, h: 1.1 });
+
+      const rows = [[
+        { text: 'Project Name',   options: { bold: true, color: '1F4E5C' } },
+        { text: 'Progress %',     options: { bold: true, color: '1F4E5C' } },
+        { text: 'Safety Score',   options: { bold: true, color: '1F4E5C' } },
+        { text: 'Budget Used %',  options: { bold: true, color: '1F4E5C' } },
+      ]];
+
+      baseProjects.forEach(p => {
+        rows.push([
+          (p.Project_Name || '').replace(' Substation',''),
+          `${Number(p.Progress_Percent || 0).toFixed(1)}%`,
+          `${Number(p.Safety_Score || 0).toFixed(1)}%`,
+          `${Number(p.Budget_Used_Percent || 0).toFixed(1)}%`,
+        ]);
+      });
+
+      s.addTable(rows, {
+        x: 0.5, y: 1.2, w: 9.0,
+        border: { type: 'solid', color: 'D5DCE3', pt: 1 },
+        header: true,
+        fillHdr: 'EDF2F5',
+        alternateRowFill: 'FAFBFC',
+        fontSize: 12,
+      });
+    }
+
+    // ---------- Slide 6: SAFETY (Divider) ----------
+    addDivider('Safety Analysis');
+
+    // ---------- Slide 7: SAFETY CONTENT ----------
+    {
+      const s = pptx.addSlide();
+      if (logoPertamina) s.addImage({ data: logoPertamina, x: 8.7, y: 0.2, w: 1.1, h: 1.1 });
+      if (logoDanan)     s.addImage({ data: logoDanan,     x: 0.2, y: 0.2, w: 1.7, h: 1.1 });
+
+      const lines = [
+        `Total Manpower: ${totalManpower.toLocaleString()}`,
+        `Safe Man Hours: ${safeManHours.toLocaleString()}`,
+        `Total Issues: ${AppState.data.issues.length}`,
+        `Total Plans: ${AppState.data.plans.length}`,
+      ];
+      s.addText(lines.join('\n\n'), { x: 1.0, y: 2.0, w: 8.0, h: 3.2, fontSize: 22, color: '1F4E5C' });
+    }
+
+    const fileName = `Pertamina_${type}_Report_${new Date().toISOString().split('T')[0]}.pptx`;
+    await pptx.writeFile({ fileName });
+    showNotification('PowerPoint report berhasil didownload!', 'success');
+  } catch (error) {
+    console.error('Error generating PowerPoint:', error);
+    showNotification('Error generating PowerPoint: ' + error.message, 'error');
+    generateFallbackReport(type, project, startDate, endDate);
+  }
 }
 
 function generateFallbackReport(type, project, startDate, endDate) {
-    const fileName = `Pertamina_${type}_Report_${new Date().toISOString().split('T')[0]}.txt`;
-    const reportContent = `
+  const fileName = `Pertamina_${type}_Report_${new Date().toISOString().split('T')[0]}.txt`;
+  const reportContent = `
 PERTAMINA - Construction ${type.charAt(0).toUpperCase() + type.slice(1)} Report
 ======================================================
 
@@ -967,108 +1055,116 @@ Total Manpower: ${AppState.data.safety.reduce((sum, item) => sum + (item.Total_M
 Safe Man Hours: ${AppState.data.safety.reduce((sum, item) => sum + (item.Safe_Man_Hours || 0), 0)}
 
 This is a fallback text report. PowerPoint functionality will be available when all libraries are loaded.
-    `;
-    const blob = new Blob([reportContent], { type: 'text/plain' });
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.style.display = 'none'; a.href = url; a.download = fileName; document.body.appendChild(a); a.click();
-    window.URL.revokeObjectURL(url); document.body.removeChild(a);
-    showNotification('Fallback report berhasil didownload!', 'success');
+  `;
+  const blob = new Blob([reportContent], { type: 'text/plain' });
+  const url = window.URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.style.display = 'none'; a.href = url; a.download = fileName; document.body.appendChild(a); a.click();
+  window.URL.revokeObjectURL(url); document.body.removeChild(a);
+  showNotification('Fallback report berhasil didownload!', 'success');
 }
 
 function updateReportsTable() {
-    const tbody = document.querySelector('#reportsTable tbody');
-    tbody.innerHTML = '';
-    (AppState.data.generatedReports || []).forEach(report => {
-        const row = document.createElement('tr');
-        row.innerHTML = `
-            <td>${report.fileName}</td>
-            <td>${report.type}</td>
-            <td>${report.project}</td>
-            <td>${report.period}</td>
-            <td>${report.createdDate}</td>
-            <td><span class="status status--success">${report.status}</span></td>`;
-        tbody.appendChild(row);
-    });
+  const tbody = document.querySelector('#reportsTable tbody');
+  if (!tbody) return;
+  tbody.innerHTML = '';
+  (AppState.data.generatedReports || []).forEach(report => {
+    const row = document.createElement('tr');
+    row.innerHTML = `
+      <td>${report.fileName}</td>
+      <td>${report.type}</td>
+      <td>${report.project}</td>
+      <td>${report.period}</td>
+      <td>${report.createdDate}</td>
+      <td><span class="status status--success">${report.status}</span></td>`;
+    tbody.appendChild(row);
+  });
 }
 
+// =========================
 // Project Filters Setup
+// =========================
 function setupProjectFilters() {
-    const mainFilter = document.getElementById('projectFilter');
-    const schedulerFilter = document.getElementById('schedulerProjectFilter');
-    const safetyFilter = document.getElementById('safetyProjectFilter');
-    const reportFilter = document.getElementById('reportProject');
+  const mainFilter = document.getElementById('projectFilter');
+  const schedulerFilter = document.getElementById('schedulerProjectFilter');
+  const safetyFilter = document.getElementById('safetyProjectFilter');
+  const reportFilter = document.getElementById('reportProject');
 
-    [mainFilter, schedulerFilter, safetyFilter, reportFilter].forEach(filter => {
-        if (filter) {
-            const firstOption = filter.querySelector('option[value="all"]');
-            filter.innerHTML = '';
-            if (firstOption) {
-                filter.appendChild(firstOption.cloneNode(true));
-            } else {
-                const allOption = document.createElement('option');
-                allOption.value = 'all';
-                allOption.textContent = 'Semua Proyek';
-                filter.appendChild(allOption);
-            }
-            const names = [...new Set((AppState.data.projects || []).map(p => p.Project_Name))].sort((a,b)=>a.localeCompare(b));
-            names.forEach(n => { const option = document.createElement('option'); option.value = n; option.textContent = n; filter.appendChild(option); });
-        }
-    });
+  [mainFilter, schedulerFilter, safetyFilter, reportFilter].forEach(filter => {
+    if (filter) {
+      const firstOption = filter.querySelector('option[value="all"]');
+      filter.innerHTML = '';
+      if (firstOption) {
+        filter.appendChild(firstOption.cloneNode(true));
+      } else {
+        const allOption = document.createElement('option');
+        allOption.value = 'all';
+        allOption.textContent = 'Semua Proyek';
+        filter.appendChild(allOption);
+      }
+      const names = [...new Set((AppState.data.projects || []).map(p => p.Project_Name))].sort((a,b)=>a.localeCompare(b));
+      names.forEach(n => { const option = document.createElement('option'); option.value = n; option.textContent = n; filter.appendChild(option); });
+    }
+  });
 
-    if (mainFilter) {
-        mainFilter.addEventListener('change', function(e) { AppState.selectedProject = e.target.value; updateOverviewContent(); });
-    }
-    if (schedulerFilter) {
-        schedulerFilter.addEventListener('change', function(e) { AppState.schedulerSelectedProject = e.target.value; updateSchedulerContent(); });
-    }
-    if (safetyFilter) {
-        safetyFilter.addEventListener('change', function(e) { AppState.safetySelectedProject = e.target.value; updatePermitsContent(); });
-    }
+  if (mainFilter) {
+    mainFilter.addEventListener('change', function(e) { AppState.selectedProject = e.target.value; updateOverviewContent(); });
+  }
+  if (schedulerFilter) {
+    schedulerFilter.addEventListener('change', function(e) { AppState.schedulerSelectedProject = e.target.value; updateSchedulerContent(); });
+  }
+  if (safetyFilter) {
+    safetyFilter.addEventListener('change', function(e) { AppState.safetySelectedProject = e.target.value; updatePermitsContent(); });
+  }
 }
 
 function getFilteredProjects() {
-    if (AppState.selectedProject === 'all') return AppState.data.projects;
-    return AppState.data.projects.filter(p => p.Project_Name === AppState.selectedProject);
+  if (AppState.selectedProject === 'all') return AppState.data.projects;
+  return AppState.data.projects.filter(p => p.Project_Name === AppState.selectedProject);
 }
 
+// =========================
 // Chatbot (unchanged)
+// =========================
 function initializeChatbot() {
-    const chatbot = document.getElementById('chatbot');
-    chatbot.classList.add('collapsed');
+  const chatbot = document.getElementById('chatbot');
+  if (chatbot) chatbot.classList.add('collapsed');
 }
-function toggleChatbot() { const chatbot = document.getElementById('chatbot'); chatbot.classList.toggle('collapsed'); }
+function toggleChatbot() { const chatbot = document.getElementById('chatbot'); if (chatbot) chatbot.classList.toggle('collapsed'); }
 function askQuestion(question) {
-    const messagesContainer = document.getElementById('chatMessages');
-    const userMessage = document.createElement('div'); userMessage.className = 'message user-message'; userMessage.textContent = question; messagesContainer.appendChild(userMessage);
-    setTimeout(() => {
-        const botMessage = document.createElement('div'); botMessage.className = 'message bot-message'; botMessage.textContent = getBotResponse(question); messagesContainer.appendChild(botMessage); messagesContainer.scrollTop = messagesContainer.scrollHeight; }, 1000);
-    messagesContainer.scrollTop = messagesContainer.scrollHeight;
+  const messagesContainer = document.getElementById('chatMessages');
+  const userMessage = document.createElement('div'); userMessage.className = 'message user-message'; userMessage.textContent = question; messagesContainer.appendChild(userMessage);
+  setTimeout(() => {
+      const botMessage = document.createElement('div'); botMessage.className = 'message bot-message'; botMessage.textContent = getBotResponse(question); messagesContainer.appendChild(botMessage); messagesContainer.scrollTop = messagesContainer.scrollHeight; }, 500);
+  messagesContainer.scrollTop = messagesContainer.scrollHeight;
 }
 function handleChatInput(event) { if (event.key === 'Enter') { sendChatMessage(); } }
 function sendChatMessage() { const input = document.getElementById('chatInput'); const message = input.value.trim(); if (message) { askQuestion(message); input.value = ''; } }
 function getBotResponse(question) {
-    const responses = {
-        'Cara upload Excel?': 'Upload file Excel dengan 7 sheet (Projects, S_Curve, Safety, Issues, Plans, Documents, Permits) di section "Upload Data Excel". Drag & drop atau klik "Pilih File Excel". Dashboard akan otomatis terupdate!',
-        'Status safety terbaru?': `Safety score rata-rata adalah ${AppState.data.projects.length > 0 ? Math.round(AppState.data.projects.reduce((sum, p) => sum + p.Safety_Score, 0) / AppState.data.projects.length) : 0}%. Total manpower: ${AppState.data.safety.reduce((sum, item) => sum + (item.Total_Manpower || 0), 0)}. Safe man hours: ${AppState.data.safety.reduce((sum, item) => sum + (item.Safe_Man_Hours || 0), 0)}.`,
-        'Generate report PowerPoint?': 'Klik section "Generator Laporan", pilih tipe laporan, tanggal, dan proyek, lalu klik "Generate PowerPoint Report". File .pptx akan otomatis terdownload dengan data lengkap!'
-    };
-    return responses[question] || 'Dashboard Pertamina sudah fully integrated: Upload Excel 7 sheet untuk update semua data, AI Scheduler dengan S-Curve Week/Month format, Smart Document Search terintegrasi, PowerPoint reports berfungsi sempurna, dan Safety Monitoring dengan Total Manpower & Safe Man Hours. Semua fitur working tanpa error!';
+  const responses = {
+      'Cara upload Excel?': 'Upload file Excel dengan 7 sheet (Projects, S_Curve, Safety, Issues, Plans, Documents, Permits) di section "Upload Data Excel". Drag & drop atau klik "Pilih File Excel". Dashboard akan otomatis terupdate!',
+      'Status safety terbaru?': `Safety score rata-rata adalah ${AppState.data.projects.length > 0 ? Math.round(AppState.data.projects.reduce((sum, p) => sum + (p.Safety_Score || 0), 0) / AppState.data.projects.length) : 0}%. Total manpower: ${AppState.data.safety.reduce((sum, item) => sum + (item.Total_Manpower || 0), 0)}. Safe man hours: ${AppState.data.safety.reduce((sum, item) => sum + (item.Safe_Man_Hours || 0), 0)}.`,
+      'Generate report PowerPoint?': 'Klik section "Generator Laporan", pilih tipe laporan, tanggal, dan proyek, lalu klik "Generate PowerPoint Report". File .pptx akan otomatis terdownload dengan data lengkap!'
+  };
+  return responses[question] || 'Dashboard Pertamina sudah fully integrated: Upload Excel 7 sheet untuk update semua data, AI Scheduler dengan S-Curve Week/Month format, Smart Document Search terintegrasi, PowerPoint reports berfungsi dengan desain baru, dan Safety Monitoring dengan Total Manpower & Safe Man Hours.';
 }
 
+// =========================
 // Notifications & modal events
+// =========================
 function showNotification(message, type = 'info') {
-    const container = document.getElementById('notifications');
-    const notification = document.createElement('div');
-    notification.className = `notification ${type}`; notification.textContent = message; container.appendChild(notification);
-    setTimeout(() => { notification.remove(); }, 5000);
+  const container = document.getElementById('notifications');
+  if (!container) return;
+  const notification = document.createElement('div');
+  notification.className = `notification ${type}`; notification.textContent = message; container.appendChild(notification);
+  setTimeout(() => { notification.remove(); }, 5000);
 }
 
 document.addEventListener('click', function(event) {
-    const modal = document.getElementById('documentModal');
-    if (event.target === modal) { closeDocumentModal(); }
+  const modal = document.getElementById('documentModal');
+  if (event.target === modal) { closeDocumentModal(); }
 });
 
 document.addEventListener('keydown', function(event) {
-    if (event.key === 'Escape') { closeDocumentModal(); }
+  if (event.key === 'Escape') { closeDocumentModal(); }
 });
