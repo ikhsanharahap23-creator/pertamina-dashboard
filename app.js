@@ -1181,6 +1181,10 @@ document.addEventListener('click', function(event) {
 document.addEventListener('keydown', function(event) {
     if (event.key === 'Escape') { closeDocumentModal(); }
 });
+/* ===== HOTFIX: Force PPT v2 generator (design with cover & dividers) ===== */
+(function () {
+  const BUILD = 'ppt-v2.1-2025-09-30';
+  console.log('[PPT] Hotfix loaded:', BUILD);
 
   // ---- v2 generator (ringkas): panggil fungsi yang sudah kamu punya ----
   async function generatePowerPointReport_v2(type, project, startDate, endDate) {
