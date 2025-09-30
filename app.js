@@ -18,6 +18,85 @@ const AppState = {
     charts: {}
 };
 
+// ==========================================
+// PPTX THEME + ASSETS + HELPERS (NEW)
+// ==========================================
+const ASSETS_BASE = './assets'; // ganti jika folder aset berbeda
+const PPT_THEME = {
+  bg: 'FFFFFF',
+  brandDark: '1F4E5C',
+  brandTeal: '21808D',
+  accent: 'FFC185',
+  danger: 'B4413C',
+  muted: '6B7C85',
+  tileBg: 'F5F7F9',
+  tableHeaderBg: 'EDF2F5',
+  divider: '1FB8CD'
+};
+
+// Ambil gambar sebagai dataURL agar bisa disematkan ke PPTX
+async function imgToDataURL(url) {
+  const res = await fetch(url, { cache: 'no-store' });
+  const blob = await res.blob();
+  return await new Promise((resolve) => {
+    const fr = new FileReader();
+    fr.onload = () => resolve(fr.result);
+    fr.readAsDataURL(blob);
+  });
+}
+
+function addFooter(pptx, slide, shortTitle = 'Pertamina Construction') {
+  slide.addShape(pptx.ShapeType.rect, { x: 0, y: 6.8, w: 10, h: 0.05, fill: PPT_THEME.divider, line: { color: PPT_THEME.divider } });
+  slide.addText(shortTitle, { x: 0.5, y: 6.85, w: 7.5, h: 0.3, fontSize: 10, color: PPT_THEME.muted });
+  slide.addText('<<#>>', { x: 8.8, y: 6.85, w: 0.7, h: 0.3, fontSize: 10, color: PPT_THEME.muted, align: 'right' });
+}
+
+function addSectionDivider(pptx, titleText) {
+  const s = pptx.addSlide({ bkgd: 'BFBFBF' });
+  s.addShape(pptx.ShapeType.rect, { x: 2, y: 2.2, w: 6, h: 1.2, fill: 'FFFFFF' });
+  s.addText(titleText, { x: 2, y: 2.2, w: 6, h: 1.2, fontSize: 28, align: 'center', bold: true, color: PPT_THEME.brandDark });
+  return s;
+}
+
+function addKpiTile(slide, { x, y, w = 3.1, h = 1.0, label, value, note, color = PPT_THEME.brandTeal }) {
+  slide.addShape(slide.parent.ShapeType.roundRect, { x, y, w, h, fill: PPT_THEME.tileBg, line: { color: 'E6EAEE' }, rectRadius: 0.2 });
+  slide.addText(label, { x: x + 0.2, y: y + 0.15, w: w - 0.4, h: 0.3, fontSize: 11, color: PPT_THEME.muted });
+  slide.addText(String(value), { x: x + 0.2, y: y + 0.45, w: w - 0.4, h: 0.4, fontSize: 22, bold: true, color });
+  if (note) slide.addText(note, { x: x + 0.2, y: y + 0.85, w: w - 0.4, h: 0.2, fontSize: 10, color: PPT_THEME.muted });
+}
+
+function addZebraTable(slide, { x, y, w, h, rows }) {
+  slide.addTable(rows, {
+    x, y, w, h,
+    border: { type: 'solid', color: 'D5DCE3', pt: 1 },
+    fill: 'FFFFFF',
+    colW: [3.6, 1.4, 1.6, 1.8, 1.6],
+    fontSize: 11,
+    autoPage: true,
+    autoPageLineWeight: 0,
+    rowH: 0.35,
+    valign: 'middle',
+    header: true,
+    fillHdr: PPT_THEME.tableHeaderBg,
+    colorHdr: PPT_THEME.brandDark,
+    bold: true,
+    alternateRowFill: 'FAFBFC'
+  });
+}
+
+function tryAddChartImage(slide, { canvasId, x, y, w, h, fallbackText }) {
+  try {
+    const cnv = document.getElementById(canvasId);
+    if (cnv && cnv.toDataURL) {
+      const dataUrl = cnv.toDataURL('image/png', 1.0);
+      slide.addImage({ data: dataUrl, x, y, w, h });
+      return true;
+    }
+  } catch (_) {}
+  slide.addText(fallbackText, { x, y: y + 0.2, w, h: 0.5, fontSize: 12, color: PPT_THEME.muted, align: 'center', italic: true });
+  return false;
+}
+
 // Project ID mapping for consistency across all sheets (seed only)
 const PROJECT_ID_MAPPING = {
     'PROJ001': 'Petani Substation',
@@ -222,28 +301,36 @@ function updateKPICards() {
     const allProjects = AppState.data.projects;
     const activePermits = AppState.data.permits.filter(p => p.Status === 'Open').length;
 
-    document.getElementById('totalProjects').textContent = allProjects.length;
-    document.getElementById('activePermits').textContent = activePermits;
+    const el1 = document.getElementById('totalProjects');
+    const el2 = document.getElementById('activePermits');
+    if (el1) el1.textContent = allProjects.length;
+    if (el2) el2.textContent = activePermits;
 
     if (allProjects.length > 0) {
         const avgSafety = Math.round(allProjects.reduce((sum, p) => sum + p.Safety_Score, 0) / allProjects.length);
         const avgBudget = Math.round(allProjects.reduce((sum, p) => sum + p.Budget_Used_Percent, 0) / allProjects.length);
-        document.getElementById('safetyScore').textContent = avgSafety + '%';
-        document.getElementById('budgetPerformance').textContent = avgBudget + '%';
+        const sEl = document.getElementById('safetyScore');
+        const bEl = document.getElementById('budgetPerformance');
+        if (sEl) sEl.textContent = avgSafety + '%';
+        if (bEl) bEl.textContent = avgBudget + '%';
     }
 }
 
 function initializeProgressChart() {
-    const ctx = document.getElementById('progressChart').getContext('2d');
+    const canvas = document.getElementById('progressChart');
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
     const filteredProjects = getFilteredProjects();
 
     if (AppState.charts.progress) AppState.charts.progress.destroy();
 
     if (filteredProjects.length === 0 && AppState.selectedProject !== 'all') {
-        document.getElementById('emptyState').style.display = 'block';
+        const empty = document.getElementById('emptyState');
+        if (empty) empty.style.display = 'block';
         return;
     } else {
-        document.getElementById('emptyState').style.display = 'none';
+        const empty = document.getElementById('emptyState');
+        if (empty) empty.style.display = 'none';
     }
 
     AppState.charts.progress = new Chart(ctx, {
@@ -268,7 +355,9 @@ function initializeProgressChart() {
 
 // Safety Trend Chart shows ALL projects
 function initializeSafetyTrendChart() {
-    const ctx = document.getElementById('safetyChart').getContext('2d');
+    const canvas = document.getElementById('safetyChart');
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
     const allProjects = AppState.data.projects;
 
     if (AppState.charts.safety) AppState.charts.safety.destroy();
@@ -299,6 +388,7 @@ function initializeExcelManagement() {
 function setupFileUpload() {
     const dropZone = document.getElementById('dropZone');
     const fileInput = document.getElementById('fileInput');
+    if (!dropZone || !fileInput) return;
 
     dropZone.addEventListener('click', () => fileInput.click());
 
@@ -320,9 +410,9 @@ function handleFileUpload(file) {
     const progressContainer = document.getElementById('uploadProgress');
     const progressBar = document.getElementById('progressBar');
     const progressText = document.getElementById('progressText');
-    progressContainer.style.display = 'block';
+    if (progressContainer) progressContainer.style.display = 'block';
 
-    if (typeof XLSX === 'undefined') { showValidationResults('error', 'Excel processing library not loaded. Please refresh the page.'); progressContainer.style.display = 'none'; return; }
+    if (typeof XLSX === 'undefined') { showValidationResults('error', 'Excel processing library not loaded. Please refresh the page.'); if (progressContainer) progressContainer.style.display = 'none'; return; }
 
     const reader = new FileReader();
     reader.onload = function(e) {
@@ -333,7 +423,7 @@ function handleFileUpload(file) {
         } catch (error) {
             console.error('Error processing Excel file:', error);
             showValidationResults('error', 'Error processing Excel file: ' + error.message);
-            progressContainer.style.display = 'none';
+            if (progressContainer) progressContainer.style.display = 'none';
         }
     };
 
@@ -341,8 +431,8 @@ function handleFileUpload(file) {
     let progress = 0;
     const interval = setInterval(() => {
         progress += Math.random() * 15; if (progress > 90) progress = 90;
-        progressBar.style.width = progress + '%';
-        progressText.textContent = `Processing... ${Math.round(progress)}%`;
+        if (progressBar) progressBar.style.width = progress + '%';
+        if (progressText) progressText.textContent = `Processing... ${Math.round(progress)}%`;
         if (progress >= 90) clearInterval(interval);
     }, 100);
 
@@ -398,11 +488,11 @@ function completeExcelUpload(file, totalRecords, processedSheets) {
     const progressBar = document.getElementById('progressBar');
     const progressText = document.getElementById('progressText');
 
-    progressBar.style.width = '100%';
-    progressText.textContent = 'Upload complete... 100%';
+    if (progressBar) progressBar.style.width = '100%';
+    if (progressText) progressText.textContent = 'Upload complete... 100%';
 
     setTimeout(() => {
-        progressContainer.style.display = 'none';
+        if (progressContainer) progressContainer.style.display = 'none';
 
         const uploadRecord = {
             fileName: file.name,
@@ -441,6 +531,7 @@ function completeExcelUpload(file, totalRecords, processedSheets) {
 
 function showValidationResults(type, message) {
     const container = document.getElementById('validationResults');
+    if (!container) return;
     container.className = `validation-results ${type}`;
     container.textContent = message;
     container.style.display = 'block';
@@ -449,6 +540,7 @@ function showValidationResults(type, message) {
 
 function updateUploadHistory() {
     const tbody = document.querySelector('#uploadHistoryTable tbody');
+    if (!tbody) return;
     tbody.innerHTML = '';
     (AppState.data.uploadHistory || []).forEach(record => {
         const row = document.createElement('tr');
@@ -492,7 +584,9 @@ function updateSchedulerContent() {
 }
 
 function initializeSCurveChart() {
-    const ctx = document.getElementById('sCurveChart').getContext('2d');
+    const canvas = document.getElementById('sCurveChart');
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
     const selectedProjectId = getProjectId(AppState.schedulerSelectedProject);
 
     if (AppState.charts.sCurve) AppState.charts.sCurve.destroy();
@@ -535,6 +629,7 @@ function initializeSCurveChart() {
 
 function updateIssuesTable() {
     const tbody = document.querySelector('#issuesTable tbody');
+    if (!tbody) return;
     tbody.innerHTML = '';
     const selectedProjectId = getProjectId(AppState.schedulerSelectedProject);
     let filteredIssues = [...AppState.data.issues];
@@ -563,6 +658,7 @@ function updateIssuesTable() {
 
 function updatePlansTable() {
     const tbody = document.querySelector('#plansTable tbody');
+    if (!tbody) return;
     tbody.innerHTML = '';
     const selectedProjectId = getProjectId(AppState.schedulerSelectedProject);
     let filteredPlans = [...AppState.data.plans];
@@ -606,7 +702,9 @@ function updatePermitsContent() {
 }
 
 function initializeSafetyPyramidChart() {
-    const ctx = document.getElementById('safetyPyramidChart').getContext('2d');
+    const canvas = document.getElementById('safetyPyramidChart');
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
     if (AppState.charts.safetyPyramid) AppState.charts.safetyPyramid.destroy();
     const totals = AppState.data.safety.reduce((acc, item) => {
         acc.nearMiss += item.Near_Miss_Events || 0;
@@ -635,6 +733,7 @@ function initializeSafetyPyramidChart() {
 
 function renderActivePermits() {
     const container = document.getElementById('activePermitsList');
+    if (!container) return;
     container.innerHTML = '';
     const activePermits = AppState.data.permits.filter(p => p.Status === 'Open');
     if (activePermits.length === 0) { container.innerHTML = '<div class="no-data-message">Tidak ada permit aktif</div>'; return; }
@@ -668,13 +767,17 @@ function updateSafetyKPIs() {
     }
     const incidentRate = incidentRateNum.toFixed(2);
 
-    document.getElementById('totalManpower').textContent = totalManpower.toLocaleString();
-    document.getElementById('safeManHours').textContent = safeManHours.toLocaleString();
-    document.getElementById('incidentRate').textContent = incidentRate + '%';
+    const el1 = document.getElementById('totalManpower');
+    const el2 = document.getElementById('safeManHours');
+    const el3 = document.getElementById('incidentRate');
+    if (el1) el1.textContent = totalManpower.toLocaleString();
+    if (el2) el2.textContent = safeManHours.toLocaleString();
+    if (el3) el3.textContent = incidentRate + '%';
 }
 
 function updateSafetyTable() {
     const tbody = document.querySelector('#safetyTable tbody');
+    if (!tbody) return;
     tbody.innerHTML = '';
     const selectedProjectId = getProjectId(AppState.safetySelectedProject);
     let filteredSafety = [...AppState.data.safety];
@@ -730,6 +833,7 @@ function setupDocumentFilters() {
 function renderDocuments() {
     const grid = document.getElementById('documentsGrid');
     const resultsInfo = document.getElementById('searchResults');
+    if (!grid || !resultsInfo) return;
     grid.innerHTML = '';
 
     const documents = AppState.data.documents || [];
@@ -794,10 +898,11 @@ function performDocumentSearch() { renderDocuments(); }
 
 function openDocumentModal(doc) {
     const modal = document.getElementById('documentModal');
+    if (!modal) return;
     const title = document.getElementById('modalTitle');
     const preview = document.getElementById('documentPreview');
-    title.textContent = doc.Document_Name || 'Unnamed Document';
-    preview.innerHTML = `
+    if (title) title.textContent = doc.Document_Name || 'Unnamed Document';
+    if (preview) preview.innerHTML = `
         <div style="padding: 20px; background: var(--color-bg-1); border-radius: 8px;">
             <h4>Document Information</h4>
             <p><strong>ID:</strong> ${doc.Document_ID || 'N/A'}</p>
@@ -815,7 +920,7 @@ function openDocumentModal(doc) {
 
 function closeDocumentModal() {
     const modal = document.getElementById('documentModal');
-    modal.classList.add('hidden');
+    if (modal) modal.classList.add('hidden');
 }
 
 // Reports / PPTX
@@ -829,12 +934,15 @@ function initializeReports() {
 function setupDateInputs() {
     const today = new Date();
     const twoWeeksAgo = new Date(today.getTime() - (14 * 24 * 60 * 60 * 1000));
-    document.getElementById('startDate').value = twoWeeksAgo.toISOString().split('T')[0];
-    document.getElementById('endDate').value = today.toISOString().split('T')[0];
+    const sd = document.getElementById('startDate');
+    const ed = document.getElementById('endDate');
+    if (sd) sd.value = twoWeeksAgo.toISOString().split('T')[0];
+    if (ed) ed.value = today.toISOString().split('T')[0];
 }
 
 function setupReportGeneration() {
     const generateBtn = document.getElementById('generateReport');
+    if (!generateBtn) return;
     generateBtn.addEventListener('click', generateReport);
 }
 
