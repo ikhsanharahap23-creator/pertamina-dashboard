@@ -1181,3 +1181,130 @@ document.addEventListener('click', function(event) {
 document.addEventListener('keydown', function(event) {
     if (event.key === 'Escape') { closeDocumentModal(); }
 });
+/* ===== HOTFIX: Force PPT v2 generator (design with cover & dividers) ===== */
+(function () {
+  const BUILD = 'ppt-v2.1-2025-09-30';
+  console.log('[PPT] Hotfix loaded:', BUILD);
+
+  // ---- v2 generator (ringkas): panggil fungsi yang sudah kamu punya ----
+  async function generatePowerPointReport_v2(type, project, startDate, endDate) {
+    if (typeof PptxGenJS === 'undefined') {
+      showNotification('PowerPoint library not loaded. Fallback report dibuat.', 'warning');
+      generateFallbackReport(type, project, startDate, endDate);
+      return;
+    }
+    // panggil fungsi baru yang sudah ada di file (kalau namanya sama, pakai yang ini)
+    if (typeof generatePowerPointReport === 'function' && generatePowerPointReport !== generatePowerPointReport_v2) {
+      // Sudah ada versi baru di atas -> pakai itu
+      return await generatePowerPointReport(type, project, startDate, endDate);
+    }
+
+    // ====== COPY RINGKASAN INTI DARI GENERATOR V2 (kalau di atas tidak ada) ======
+    const ASSETS_BASE = './assets';
+    const toDataURL = async (p) => {
+      try { const r = await fetch(p, {cache:'no-store'}); const b = await r.blob();
+        return await new Promise(res=>{ const fr=new FileReader(); fr.onload=()=>res(fr.result); fr.readAsDataURL(b); });
+      } catch { return null; }
+    };
+    const [cover, lgP, lgD] = await Promise.all([
+      toDataURL(`${ASSETS_BASE}/cover_weekly.png`),
+      toDataURL(`${ASSETS_BASE}/logo_pertamina.png`),
+      toDataURL(`${ASSETS_BASE}/logo_danan.png`)
+    ]);
+
+    const pptx = new PptxGenJS(); pptx.layout = 'LAYOUT_16x9';
+
+    const projects = (project==='all' ? AppState.data.projects :
+                      AppState.data.projects.filter(p=>p.Project_Name===project));
+    const base = projects.length ? projects : AppState.data.projects;
+    const total = base.length;
+    const avgProg = total ? Math.round(base.reduce((s,p)=>s+(p.Progress_Percent||0),0)/total) : 0;
+    const avgSaf  = total ? Math.round(base.reduce((s,p)=>s+(p.Safety_Score||0),0)/total) : 0;
+
+    // Cover
+    { const s = pptx.addSlide();
+      if (cover) s.addImage({data:cover,x:0,y:0,w:10,h:5.63});
+      if (lgP) s.addImage({data:lgP,x:8.8,y:0.2,w:1.1,h:1.1});
+      if (lgD) s.addImage({data:lgD,x:0.2,y:0.2,w:1.7,h:1.1});
+      s.addShape(pptx.ShapeType.rect,{x:1,y:0.6,w:8,h:2.3,fill:{color:'2E6F86',transparency:35}});
+      s.addText('Construction Weekly Report',{x:1.3,y:0.8,w:7.4,h:0.8,fontSize:28,bold:true,color:'FFFFFF'});
+      s.addText(project==='all'?'Semua Proyek':project,{x:1.3,y:1.5,w:7.4,h:0.6,fontSize:24,bold:true,color:'FFFFFF'});
+      s.addText(`Period: ${startDate} to ${endDate}`,{x:1.3,y:2.1,w:7.4,h:0.6,fontSize:22,bold:true,color:'FFFFFF'});
+    }
+    // Divider
+    const divider=(title)=>{const s=pptx.addSlide({bkgd:'BFBFBF'});
+      if (lgP) s.addImage({data:lgP,x:8.8,y:0.2,w:1.1,h:1.1});
+      if (lgD) s.addImage({data:lgD,x:0.2,y:0.2,w:1.7,h:1.1});
+      s.addShape(pptx.ShapeType.rect,{x:2,y:2.2,w:6,h:1.2,fill:'FFFFFF'});
+      s.addText(title,{x:2,y:2.2,w:6,h:1.2,fontSize:28,align:'center',bold:true,color:'1F4E5C'}); };
+
+    divider('Executive Summary');
+    { const s=pptx.addSlide();
+      if (lgP) s.addImage({data:lgP,x:8.8,y:0.2,w:1.1,h:1.1});
+      if (lgD) s.addImage({data:lgD,x:0.2,y:0.2,w:1.7,h:1.1});
+      s.addText([
+        `Total Projects: ${total||AppState.data.projects.length}`,
+        `Average Progress: ${avgProg}%`,
+        `Average Safety Score: ${avgSaf}%`,
+        `Active Permits: ${AppState.data.permits.filter(p=>p.Status==='Open').length}`,
+        `Generated: ${new Date().toLocaleString('id-ID')}`
+      ].join('\n\n'),{x:1,y:2,w:8,h:3.2,fontSize:22,color:'1F4E5C'});
+    }
+
+    divider('Progress Project Details');
+    { const s=pptx.addSlide();
+      if (lgP) s.addImage({data:lgP,x:8.8,y:0.2,w:1.1,h:1.1});
+      if (lgD) s.addImage({data:lgD,x:0.2,y:0.2,w:1.7,h:1.1});
+      const rows=[[
+        {text:'Project Name',options:{bold:true,color:'1F4E5C'}},
+        {text:'Progress %',options:{bold:true,color:'1F4E5C'}},
+        {text:'Safety Score',options:{bold:true,color:'1F4E5C'}},
+        {text:'Budget Used %',options:{bold:true,color:'1F4E5C'}}
+      ]];
+      base.forEach(p=>rows.push([
+        p.Project_Name?.replace(' Substation','')||'—',
+        `${Number(p.Progress_Percent||0).toFixed(1)}%`,
+        `${Number(p.Safety_Score||0).toFixed(1)}%`,
+        `${Number(p.Budget_Used_Percent||0).toFixed(1)}%`
+      ]));
+      s.addTable(rows,{x:0.5,y:1.5,w:9,h:4.6,header:true,fillHdr:'EDF2F5',border:{type:'solid',color:'D5DCE3',pt:1},alternateRowFill:'FAFBFC',fontSize:12});
+    }
+
+    divider('Safety Analysis');
+    { const s=pptx.addSlide();
+      if (lgP) s.addImage({data:lgP,x:8.8,y:0.2,w:1.1,h:1.1});
+      if (lgD) s.addImage({data:lgD,x:0.2,y:0.2,w:1.7,h:1.1});
+      const tm=AppState.data.safety.reduce((a,i)=>a+(i.Total_Manpower||0),0);
+      const sh=AppState.data.safety.reduce((a,i)=>a+(i.Safe_Man_Hours||0),0);
+      s.addText([
+        `Total Manpower: ${tm.toLocaleString()}`,
+        `Safe Man Hours: ${sh.toLocaleString()}`,
+        `Total Issues: ${AppState.data.issues.length}`,
+        `Total Plans: ${AppState.data.plans.length}`
+      ].join('\n\n'),{x:1,y:2,w:8,h:3.2,fontSize:22,color:'1F4E5C'});
+    }
+
+    await pptx.writeFile({ fileName: `Pertamina_${type}_Report_${new Date().toISOString().split('T')[0]}.pptx` });
+    showNotification('PowerPoint (v2) berhasil didownload!', 'success');
+  }
+
+  // Paksa tombol "Generate" pakai v2
+  const wire = () => {
+    const btn = document.getElementById('generateReport');
+    if (!btn) return;
+    btn.onclick = async () => {
+      const type = document.getElementById('reportType').value;
+      const startDate = document.getElementById('startDate').value;
+      const endDate = document.getElementById('endDate').value;
+      const project = document.getElementById('reportProject').value;
+      showNotification('Generating PowerPoint (v2)...', 'info');
+      await generatePowerPointReport_v2(type, project, startDate, endDate);
+    };
+    console.log('[PPT] Button wired to v2');
+  };
+  if (document.readyState === 'complete' || document.readyState === 'interactive') wire();
+  else document.addEventListener('DOMContentLoaded', wire);
+
+  // Expose untuk debug
+  window.__ppt_v2 = generatePowerPointReport_v2;
+})();
