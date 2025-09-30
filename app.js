@@ -1,5 +1,5 @@
 // ========================================================
-// Global application state
+// Global Application State
 // ========================================================
 const AppState = {
   currentSection: "overview",
@@ -20,7 +20,7 @@ const AppState = {
   charts: {},
 };
 
-// Mapping proyek default
+// Static Project ID Mapping
 const PROJECT_ID_MAPPING = {
   PROJ001: "Petani Substation",
   PROJ002: "Menggala Substation",
@@ -31,18 +31,14 @@ const PROJECT_ID_MAPPING = {
   PROJ007: "OKB Substation",
 };
 
-// ========================================================
-// Mapping helpers
-// ========================================================
+// Dynamic maps (rebuilt from sheet Projects)
 let _idToName = {};
 let _nameToId = {};
-
 function buildProjectMaps() {
   _idToName = { ...PROJECT_ID_MAPPING };
   _nameToId = Object.fromEntries(
     Object.entries(_idToName).map(([id, name]) => [name, id])
   );
-
   (AppState?.data?.projects || []).forEach((p) => {
     const id = String(p.Project_ID || "").trim();
     const nm = String(p.Project_Name || "").trim();
@@ -52,13 +48,12 @@ function buildProjectMaps() {
     }
   });
 }
-
-function getProjectName(projectId) {
-  return _idToName[projectId] || projectId || "Unknown Project";
+function getProjectName(id) {
+  return _idToName[id] || id || "Unknown Project";
 }
-function getProjectId(projectName) {
-  if (!projectName || projectName === "all") return null;
-  return _nameToId[projectName] || null;
+function getProjectId(name) {
+  if (!name || name === "all") return null;
+  return _nameToId[name] || null;
 }
 function resolveProjectId(row) {
   return (
@@ -67,8 +62,6 @@ function resolveProjectId(row) {
     "PROJ_UNKNOWN"
   );
 }
-
-// Status CSS
 function getStatusClass(status) {
   if (!status) return "info";
   const s = status.toLowerCase();
@@ -79,58 +72,12 @@ function getStatusClass(status) {
 }
 
 // ========================================================
-// Initial Sample Data
+// Initialize Application
 // ========================================================
-const initialData = {
-  projects: [
-    {
-      Date: "2024-01-15",
-      Project_ID: "PROJ001",
-      Project_Name: "Petani Substation",
-      Progress_Percent: 75.5,
-      Budget_Used_Percent: 72.3,
-      Budget_Total: 15000000,
-      Labor_Hours: 1200,
-      Equipment_Hours: 450,
-      Safety_Score: 95,
-      Quality_Score: 88,
-      Weather_Impact: "Minor",
-      Delay_Days: 2,
-    },
-    {
-      Date: "2024-01-15",
-      Project_ID: "PROJ002",
-      Project_Name: "Menggala Substation",
-      Progress_Percent: 68.2,
-      Budget_Used_Percent: 65.1,
-      Budget_Total: 12500000,
-      Labor_Hours: 1500,
-      Equipment_Hours: 500,
-      Safety_Score: 92,
-      Quality_Score: 90,
-      Weather_Impact: "None",
-      Delay_Days: 0,
-    },
-  ],
-  sCurveData: [],
-  safety: [],
-  issues: [],
-  plans: [],
-  documents: [],
-  permits: [],
-};
-
-// ========================================================
-// Init App
-// ========================================================
-document.addEventListener("DOMContentLoaded", () => {
-  initializeApp();
-});
-
+document.addEventListener("DOMContentLoaded", initializeApp);
 function initializeApp() {
   AppState.data = { ...initialData };
   buildProjectMaps();
-
   setupNavigation();
   initializeOverview();
   initializeExcelManagement();
@@ -139,12 +86,8 @@ function initializeApp() {
   initializeDocuments();
   initializeReports();
   initializeChatbot();
-
   setupProjectFilters();
-  showNotification(
-    "Dashboard Pertamina berhasil dimuat! Upload file Excel untuk data terlengkap.",
-    "success"
-  );
+  showNotification("Dashboard berhasil dimuat!", "success");
 }
 
 // ========================================================
@@ -155,73 +98,75 @@ function setupNavigation() {
   navLinks.forEach((link) => {
     link.addEventListener("click", function (e) {
       e.preventDefault();
-      const targetSection = this.getAttribute("data-section");
-      switchSection(targetSection);
-      navLinks.forEach((nav) => nav.classList.remove("active"));
+      const target = this.getAttribute("data-section");
+      switchSection(target);
+      navLinks.forEach((n) => n.classList.remove("active"));
       this.classList.add("active");
     });
   });
 }
-
-function switchSection(sectionName) {
-  document
-    .querySelectorAll(".content-section")
-    .forEach((s) => s.classList.remove("active"));
-  const target = document.getElementById(sectionName);
+function switchSection(section) {
+  document.querySelectorAll(".content-section").forEach((s) =>
+    s.classList.remove("active")
+  );
+  const target = document.getElementById(section);
   if (target) {
     target.classList.add("active");
-    AppState.currentSection = sectionName;
-    if (sectionName === "overview") updateOverviewContent();
-    if (sectionName === "scheduler") updateSchedulerContent();
-    if (sectionName === "documents") renderDocuments();
-    if (sectionName === "permits") updatePermitsContent();
+    AppState.currentSection = section;
+    if (section === "overview") updateOverviewContent();
+    if (section === "scheduler") updateSchedulerContent();
+    if (section === "documents") renderDocuments();
+    if (section === "permits") updatePermitsContent();
   }
 }
 
 // ========================================================
-// Overview Section
+// Overview (KPI & Charts)
 // ========================================================
 function initializeOverview() {
   updateOverviewContent();
 }
 function updateOverviewContent() {
-  updateKPICards();
-}
-function updateKPICards() {
-  const allProjects = AppState.data.projects;
-  document.getElementById("totalProjects").textContent = allProjects.length;
+  const projects = AppState.data.projects;
+  document.getElementById("totalProjects").textContent = projects.length;
+  if (projects.length > 0) {
+    const avgSafety = Math.round(
+      projects.reduce((s, p) => s + (p.Safety_Score || 0), 0) / projects.length
+    );
+    document.getElementById("safetyScore").textContent = avgSafety + "%";
+  }
 }
 
 // ========================================================
-// Excel Upload (ringkas untuk contoh)
+// Excel Upload (Simplified)
 // ========================================================
 function initializeExcelManagement() {
-  setupFileUpload();
-}
-function setupFileUpload() {
   const fileInput = document.getElementById("fileInput");
-  fileInput.addEventListener("change", function (e) {
-    if (e.target.files.length > 0) handleFileUpload(e.target.files[0]);
-  });
+  if (fileInput) {
+    fileInput.addEventListener("change", (e) => {
+      if (e.target.files.length > 0) {
+        handleFileUpload(e.target.files[0]);
+      }
+    });
+  }
 }
 function handleFileUpload(file) {
   showNotification(`File ${file.name} berhasil diupload`, "success");
 }
 
 // ========================================================
-// Scheduler
+// Scheduler (S-Curve & Issues/Plans)
 // ========================================================
 function initializeScheduler() {
   updateSchedulerContent();
 }
 function updateSchedulerContent() {
-  // contoh update tabel
   updateIssuesTable();
 }
 function updateIssuesTable() {
   const tbody = document.querySelector("#issuesTable tbody");
   tbody.innerHTML =
-    "<tr><td colspan='7'>Tidak ada data issue tersedia</td></tr>";
+    "<tr><td colspan='7' class='table-loading'>Tidak ada data issue</td></tr>";
 }
 
 // ========================================================
@@ -246,7 +191,7 @@ function renderDocuments() {
 }
 
 // ========================================================
-// Reports / PPTX
+// Reports (PowerPoint Generator)
 // ========================================================
 function initializeReports() {
   setupReportGeneration();
@@ -261,15 +206,14 @@ function updateReportsTable() {
   tbody.innerHTML = "";
 }
 
-// ==========================================
-// REPORT GENERATOR FIXED
-// ==========================================
 const ASSETS = {
   cover: "assets/cover_weekly.png",
   logoDanan: "assets/logo_danan.png",
   logoPertamina: "assets/logo_pertamina.png",
 };
-function absPath(p) { return new URL(p, document.baseURI).href; }
+function absPath(p) {
+  return new URL(p, document.baseURI).href;
+}
 async function loadAsDataUrl(url) {
   const res = await fetch(url, { cache: "no-cache" });
   const blob = await res.blob();
@@ -280,65 +224,161 @@ async function loadAsDataUrl(url) {
   });
 }
 
+// === Main Generate Report ===
 async function generateReport() {
   const type = document.getElementById("reportType").value;
-  const startDate = document.getElementById("startDate").value;
-  const endDate = document.getElementById("endDate").value;
+  const start = document.getElementById("startDate").value;
+  const end = document.getElementById("endDate").value;
   const project = document.getElementById("reportProject").value;
-
-  await generatePowerPointReport(type, project, startDate, endDate);
+  await generatePowerPointReport(type, project, start, end);
 }
-
 async function generatePowerPointReport(type, project, startDate, endDate) {
   try {
     if (typeof PptxGenJS === "undefined") {
-      showNotification("Library PPTX tidak ada, fallback digunakan", "warning");
       generateFallbackReport(type, project, startDate, endDate);
       return;
     }
-
     const [coverImg, logoDanan, logoPertamina] = await Promise.all([
       loadAsDataUrl(absPath(ASSETS.cover)),
       loadAsDataUrl(absPath(ASSETS.logoDanan)),
       loadAsDataUrl(absPath(ASSETS.logoPertamina)),
     ]);
-
     const pptx = new PptxGenJS();
     pptx.layout = "LAYOUT_16x9";
-    pptx.author = "Pertamina Construction Dashboard";
 
-    const reportTitle = `Construction ${type} Report`;
+    // Slide 1: Cover
+    const s1 = pptx.addSlide();
+    s1.addImage({ data: coverImg, x: 0, y: 0, w: 13.33, h: 7.5 });
+    s1.addImage({ data: logoDanan, x: 1, y: 0.7, w: 3, h: 1 });
+    s1.addImage({ data: logoPertamina, x: 9.8, y: 0.7, w: 2.5, h: 1 });
+    s1.addText(`Construction ${type} Report`, {
+      x: 1.3,
+      y: 2,
+      w: 10,
+      h: 0.8,
+      fontSize: 32,
+      bold: true,
+      color: "FFFFFF",
+    });
+    s1.addText(project === "all" ? "Semua Proyek" : project, {
+      x: 1.3,
+      y: 3,
+      w: 10,
+      h: 0.6,
+      fontSize: 24,
+      bold: true,
+      color: "FFFFFF",
+    });
+    s1.addText(`Period: ${startDate} - ${endDate}`, {
+      x: 1.3,
+      y: 3.8,
+      w: 10,
+      h: 0.5,
+      fontSize: 20,
+      color: "FFFFFF",
+    });
 
-    // Cover
-    {
-      const s = pptx.addSlide();
-      s.addImage({ data: coverImg, x: 0, y: 0, w: 13.33, h: 7.5 });
-      s.addImage({ data: logoDanan, x: 1, y: 0.7, w: 3, h: 1 });
-      s.addImage({ data: logoPertamina, x: 9.8, y: 0.7, w: 2.5, h: 1 });
-      s.addText(reportTitle, {
-        x: 1.3, y: 2, w: 10, h: 0.8,
-        fontSize: 32, bold: true, color: "FFFFFF",
-      });
-    }
+    // Slide 2: Executive Summary
+    const s2 = pptx.addSlide();
+    s2.addText("Executive Summary", {
+      x: 0.5,
+      y: 0.5,
+      w: 12,
+      h: 0.8,
+      fontSize: 28,
+      bold: true,
+      color: "184E5C",
+    });
+    const totalProjects = AppState.data.projects.length;
+    const activePermits = AppState.data.permits.filter(
+      (p) => p.Status === "Open"
+    ).length;
+    s2.addText(`Total Projects: ${totalProjects}`, {
+      x: 0.8,
+      y: 1.5,
+      fontSize: 20,
+    });
+    s2.addText(`Active Permits: ${activePermits}`, {
+      x: 0.8,
+      y: 2.2,
+      fontSize: 20,
+    });
 
-    // Executive Summary
-    {
-      const s = pptx.addSlide();
-      s.addImage({ data: logoDanan, x: 0.6, y: 0.4, w: 2.5, h: 0.8 });
-      s.addImage({ data: logoPertamina, x: 10.2, y: 0.4, w: 2.2, h: 0.8 });
-      s.addText("Executive Summary - (dummy data)", { x: 1, y: 2, w: 10, h: 1 });
-    }
+    // Slide 3: Project Progress Table
+    const s3 = pptx.addSlide();
+    s3.addText("Project Progress", {
+      x: 0.5,
+      y: 0.5,
+      w: 12,
+      h: 0.8,
+      fontSize: 28,
+      bold: true,
+      color: "184E5C",
+    });
+    const rows = [
+      [
+        { text: "Project Name", options: { bold: true, color: "FFFFFF" } },
+        { text: "Progress %", options: { bold: true, color: "FFFFFF" } },
+        { text: "Safety Score", options: { bold: true, color: "FFFFFF" } },
+      ],
+    ];
+    (AppState.data.projects || []).forEach((p) => {
+      rows.push([
+        p.Project_Name,
+        `${p.Progress_Percent || 0}%`,
+        `${p.Safety_Score || 0}%`,
+      ]);
+    });
+    s3.addTable(rows, {
+      x: 0.5,
+      y: 1.5,
+      w: 12,
+      border: { type: "solid", color: "184E5C", pt: 1 },
+      fill: "F2F2F2",
+      fontSize: 14,
+      colW: [6, 3, 3],
+    });
+
+    // Slide 4: Safety Overview
+    const s4 = pptx.addSlide();
+    s4.addText("Safety Overview", {
+      x: 0.5,
+      y: 0.5,
+      w: 12,
+      h: 0.8,
+      fontSize: 28,
+      bold: true,
+      color: "184E5C",
+    });
+    const totalManpower = AppState.data.safety.reduce(
+      (sum, item) => sum + (item.Total_Manpower || 0),
+      0
+    );
+    s4.addText(`Total Manpower: ${totalManpower}`, {
+      x: 0.8,
+      y: 1.5,
+      fontSize: 20,
+    });
+    s4.addText(`Safe Man Hours: ${
+      AppState.data.safety.reduce(
+        (sum, item) => sum + (item.Safe_Man_Hours || 0),
+        0
+      )
+    }`, {
+      x: 0.8,
+      y: 2.2,
+      fontSize: 20,
+    });
 
     await pptx.writeFile({
       fileName: `Pertamina_${type}_Report_${startDate}_${endDate}.pptx`,
     });
     showNotification("Report berhasil diunduh!", "success");
   } catch (err) {
-    console.error("PPT error:", err);
+    console.error("PPT Error:", err);
     generateFallbackReport(type, project, startDate, endDate);
   }
 }
-
 function generateFallbackReport(type, project, startDate, endDate) {
   const txt = `Pertamina ${type} Report (${startDate} - ${endDate})`;
   const blob = new Blob([txt], { type: "text/plain" });
@@ -346,6 +386,22 @@ function generateFallbackReport(type, project, startDate, endDate) {
   a.href = URL.createObjectURL(blob);
   a.download = "fallback_report.txt";
   a.click();
+}
+
+// ========================================================
+// Project Filters
+// ========================================================
+function setupProjectFilters() {
+  const reportFilter = document.getElementById("reportProject");
+  if (reportFilter) {
+    reportFilter.innerHTML = "<option value='all'>Semua Proyek</option>";
+    (AppState.data.projects || []).forEach((p) => {
+      const o = document.createElement("option");
+      o.value = p.Project_Name;
+      o.textContent = p.Project_Name;
+      reportFilter.appendChild(o);
+    });
+  }
 }
 
 // ========================================================
@@ -359,11 +415,11 @@ function initializeChatbot() {
 // ========================================================
 // Notifications
 // ========================================================
-function showNotification(msg, type = "info") {
-  const box = document.getElementById("notifications");
+function showNotification(message, type = "info") {
+  const container = document.getElementById("notifications");
   const n = document.createElement("div");
   n.className = `notification ${type}`;
-  n.textContent = msg;
-  box.appendChild(n);
+  n.textContent = message;
+  container.appendChild(n);
   setTimeout(() => n.remove(), 4000);
 }
