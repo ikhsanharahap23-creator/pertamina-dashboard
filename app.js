@@ -18,85 +18,6 @@ const AppState = {
     charts: {}
 };
 
-// ==========================================
-// PPTX THEME + ASSETS + HELPERS (NEW)
-// ==========================================
-const ASSETS_BASE = './assets'; // ganti jika folder aset berbeda
-const PPT_THEME = {
-  bg: 'FFFFFF',
-  brandDark: '1F4E5C',
-  brandTeal: '21808D',
-  accent: 'FFC185',
-  danger: 'B4413C',
-  muted: '6B7C85',
-  tileBg: 'F5F7F9',
-  tableHeaderBg: 'EDF2F5',
-  divider: '1FB8CD'
-};
-
-// Ambil gambar sebagai dataURL agar bisa disematkan ke PPTX
-async function imgToDataURL(url) {
-  const res = await fetch(url, { cache: 'no-store' });
-  const blob = await res.blob();
-  return await new Promise((resolve) => {
-    const fr = new FileReader();
-    fr.onload = () => resolve(fr.result);
-    fr.readAsDataURL(blob);
-  });
-}
-
-function addFooter(pptx, slide, shortTitle = 'Pertamina Construction') {
-  slide.addShape(pptx.ShapeType.rect, { x: 0, y: 6.8, w: 10, h: 0.05, fill: PPT_THEME.divider, line: { color: PPT_THEME.divider } });
-  slide.addText(shortTitle, { x: 0.5, y: 6.85, w: 7.5, h: 0.3, fontSize: 10, color: PPT_THEME.muted });
-  slide.addText('<<#>>', { x: 8.8, y: 6.85, w: 0.7, h: 0.3, fontSize: 10, color: PPT_THEME.muted, align: 'right' });
-}
-
-function addSectionDivider(pptx, titleText) {
-  const s = pptx.addSlide({ bkgd: 'BFBFBF' });
-  s.addShape(pptx.ShapeType.rect, { x: 2, y: 2.2, w: 6, h: 1.2, fill: 'FFFFFF' });
-  s.addText(titleText, { x: 2, y: 2.2, w: 6, h: 1.2, fontSize: 28, align: 'center', bold: true, color: PPT_THEME.brandDark });
-  return s;
-}
-
-function addKpiTile(slide, { x, y, w = 3.1, h = 1.0, label, value, note, color = PPT_THEME.brandTeal }) {
-  slide.addShape(slide.parent.ShapeType.roundRect, { x, y, w, h, fill: PPT_THEME.tileBg, line: { color: 'E6EAEE' }, rectRadius: 0.2 });
-  slide.addText(label, { x: x + 0.2, y: y + 0.15, w: w - 0.4, h: 0.3, fontSize: 11, color: PPT_THEME.muted });
-  slide.addText(String(value), { x: x + 0.2, y: y + 0.45, w: w - 0.4, h: 0.4, fontSize: 22, bold: true, color });
-  if (note) slide.addText(note, { x: x + 0.2, y: y + 0.85, w: w - 0.4, h: 0.2, fontSize: 10, color: PPT_THEME.muted });
-}
-
-function addZebraTable(slide, { x, y, w, h, rows }) {
-  slide.addTable(rows, {
-    x, y, w, h,
-    border: { type: 'solid', color: 'D5DCE3', pt: 1 },
-    fill: 'FFFFFF',
-    colW: [3.6, 1.4, 1.6, 1.8, 1.6],
-    fontSize: 11,
-    autoPage: true,
-    autoPageLineWeight: 0,
-    rowH: 0.35,
-    valign: 'middle',
-    header: true,
-    fillHdr: PPT_THEME.tableHeaderBg,
-    colorHdr: PPT_THEME.brandDark,
-    bold: true,
-    alternateRowFill: 'FAFBFC'
-  });
-}
-
-function tryAddChartImage(slide, { canvasId, x, y, w, h, fallbackText }) {
-  try {
-    const cnv = document.getElementById(canvasId);
-    if (cnv && cnv.toDataURL) {
-      const dataUrl = cnv.toDataURL('image/png', 1.0);
-      slide.addImage({ data: dataUrl, x, y, w, h });
-      return true;
-    }
-  } catch (_) {}
-  slide.addText(fallbackText, { x, y: y + 0.2, w, h: 0.5, fontSize: 12, color: PPT_THEME.muted, align: 'center', italic: true });
-  return false;
-}
-
 // Project ID mapping for consistency across all sheets (seed only)
 const PROJECT_ID_MAPPING = {
     'PROJ001': 'Petani Substation',
@@ -301,36 +222,28 @@ function updateKPICards() {
     const allProjects = AppState.data.projects;
     const activePermits = AppState.data.permits.filter(p => p.Status === 'Open').length;
 
-    const el1 = document.getElementById('totalProjects');
-    const el2 = document.getElementById('activePermits');
-    if (el1) el1.textContent = allProjects.length;
-    if (el2) el2.textContent = activePermits;
+    document.getElementById('totalProjects').textContent = allProjects.length;
+    document.getElementById('activePermits').textContent = activePermits;
 
     if (allProjects.length > 0) {
         const avgSafety = Math.round(allProjects.reduce((sum, p) => sum + p.Safety_Score, 0) / allProjects.length);
         const avgBudget = Math.round(allProjects.reduce((sum, p) => sum + p.Budget_Used_Percent, 0) / allProjects.length);
-        const sEl = document.getElementById('safetyScore');
-        const bEl = document.getElementById('budgetPerformance');
-        if (sEl) sEl.textContent = avgSafety + '%';
-        if (bEl) bEl.textContent = avgBudget + '%';
+        document.getElementById('safetyScore').textContent = avgSafety + '%';
+        document.getElementById('budgetPerformance').textContent = avgBudget + '%';
     }
 }
 
 function initializeProgressChart() {
-    const canvas = document.getElementById('progressChart');
-    if (!canvas) return;
-    const ctx = canvas.getContext('2d');
+    const ctx = document.getElementById('progressChart').getContext('2d');
     const filteredProjects = getFilteredProjects();
 
     if (AppState.charts.progress) AppState.charts.progress.destroy();
 
     if (filteredProjects.length === 0 && AppState.selectedProject !== 'all') {
-        const empty = document.getElementById('emptyState');
-        if (empty) empty.style.display = 'block';
+        document.getElementById('emptyState').style.display = 'block';
         return;
     } else {
-        const empty = document.getElementById('emptyState');
-        if (empty) empty.style.display = 'none';
+        document.getElementById('emptyState').style.display = 'none';
     }
 
     AppState.charts.progress = new Chart(ctx, {
@@ -355,9 +268,7 @@ function initializeProgressChart() {
 
 // Safety Trend Chart shows ALL projects
 function initializeSafetyTrendChart() {
-    const canvas = document.getElementById('safetyChart');
-    if (!canvas) return;
-    const ctx = canvas.getContext('2d');
+    const ctx = document.getElementById('safetyChart').getContext('2d');
     const allProjects = AppState.data.projects;
 
     if (AppState.charts.safety) AppState.charts.safety.destroy();
@@ -388,7 +299,6 @@ function initializeExcelManagement() {
 function setupFileUpload() {
     const dropZone = document.getElementById('dropZone');
     const fileInput = document.getElementById('fileInput');
-    if (!dropZone || !fileInput) return;
 
     dropZone.addEventListener('click', () => fileInput.click());
 
@@ -410,9 +320,9 @@ function handleFileUpload(file) {
     const progressContainer = document.getElementById('uploadProgress');
     const progressBar = document.getElementById('progressBar');
     const progressText = document.getElementById('progressText');
-    if (progressContainer) progressContainer.style.display = 'block';
+    progressContainer.style.display = 'block';
 
-    if (typeof XLSX === 'undefined') { showValidationResults('error', 'Excel processing library not loaded. Please refresh the page.'); if (progressContainer) progressContainer.style.display = 'none'; return; }
+    if (typeof XLSX === 'undefined') { showValidationResults('error', 'Excel processing library not loaded. Please refresh the page.'); progressContainer.style.display = 'none'; return; }
 
     const reader = new FileReader();
     reader.onload = function(e) {
@@ -423,7 +333,7 @@ function handleFileUpload(file) {
         } catch (error) {
             console.error('Error processing Excel file:', error);
             showValidationResults('error', 'Error processing Excel file: ' + error.message);
-            if (progressContainer) progressContainer.style.display = 'none';
+            progressContainer.style.display = 'none';
         }
     };
 
@@ -431,8 +341,8 @@ function handleFileUpload(file) {
     let progress = 0;
     const interval = setInterval(() => {
         progress += Math.random() * 15; if (progress > 90) progress = 90;
-        if (progressBar) progressBar.style.width = progress + '%';
-        if (progressText) progressText.textContent = `Processing... ${Math.round(progress)}%`;
+        progressBar.style.width = progress + '%';
+        progressText.textContent = `Processing... ${Math.round(progress)}%`;
         if (progress >= 90) clearInterval(interval);
     }, 100);
 
@@ -488,11 +398,11 @@ function completeExcelUpload(file, totalRecords, processedSheets) {
     const progressBar = document.getElementById('progressBar');
     const progressText = document.getElementById('progressText');
 
-    if (progressBar) progressBar.style.width = '100%';
-    if (progressText) progressText.textContent = 'Upload complete... 100%';
+    progressBar.style.width = '100%';
+    progressText.textContent = 'Upload complete... 100%';
 
     setTimeout(() => {
-        if (progressContainer) progressContainer.style.display = 'none';
+        progressContainer.style.display = 'none';
 
         const uploadRecord = {
             fileName: file.name,
@@ -531,7 +441,6 @@ function completeExcelUpload(file, totalRecords, processedSheets) {
 
 function showValidationResults(type, message) {
     const container = document.getElementById('validationResults');
-    if (!container) return;
     container.className = `validation-results ${type}`;
     container.textContent = message;
     container.style.display = 'block';
@@ -540,7 +449,6 @@ function showValidationResults(type, message) {
 
 function updateUploadHistory() {
     const tbody = document.querySelector('#uploadHistoryTable tbody');
-    if (!tbody) return;
     tbody.innerHTML = '';
     (AppState.data.uploadHistory || []).forEach(record => {
         const row = document.createElement('tr');
@@ -584,9 +492,7 @@ function updateSchedulerContent() {
 }
 
 function initializeSCurveChart() {
-    const canvas = document.getElementById('sCurveChart');
-    if (!canvas) return;
-    const ctx = canvas.getContext('2d');
+    const ctx = document.getElementById('sCurveChart').getContext('2d');
     const selectedProjectId = getProjectId(AppState.schedulerSelectedProject);
 
     if (AppState.charts.sCurve) AppState.charts.sCurve.destroy();
@@ -629,7 +535,6 @@ function initializeSCurveChart() {
 
 function updateIssuesTable() {
     const tbody = document.querySelector('#issuesTable tbody');
-    if (!tbody) return;
     tbody.innerHTML = '';
     const selectedProjectId = getProjectId(AppState.schedulerSelectedProject);
     let filteredIssues = [...AppState.data.issues];
@@ -658,7 +563,6 @@ function updateIssuesTable() {
 
 function updatePlansTable() {
     const tbody = document.querySelector('#plansTable tbody');
-    if (!tbody) return;
     tbody.innerHTML = '';
     const selectedProjectId = getProjectId(AppState.schedulerSelectedProject);
     let filteredPlans = [...AppState.data.plans];
@@ -702,9 +606,7 @@ function updatePermitsContent() {
 }
 
 function initializeSafetyPyramidChart() {
-    const canvas = document.getElementById('safetyPyramidChart');
-    if (!canvas) return;
-    const ctx = canvas.getContext('2d');
+    const ctx = document.getElementById('safetyPyramidChart').getContext('2d');
     if (AppState.charts.safetyPyramid) AppState.charts.safetyPyramid.destroy();
     const totals = AppState.data.safety.reduce((acc, item) => {
         acc.nearMiss += item.Near_Miss_Events || 0;
@@ -733,7 +635,6 @@ function initializeSafetyPyramidChart() {
 
 function renderActivePermits() {
     const container = document.getElementById('activePermitsList');
-    if (!container) return;
     container.innerHTML = '';
     const activePermits = AppState.data.permits.filter(p => p.Status === 'Open');
     if (activePermits.length === 0) { container.innerHTML = '<div class="no-data-message">Tidak ada permit aktif</div>'; return; }
@@ -767,17 +668,13 @@ function updateSafetyKPIs() {
     }
     const incidentRate = incidentRateNum.toFixed(2);
 
-    const el1 = document.getElementById('totalManpower');
-    const el2 = document.getElementById('safeManHours');
-    const el3 = document.getElementById('incidentRate');
-    if (el1) el1.textContent = totalManpower.toLocaleString();
-    if (el2) el2.textContent = safeManHours.toLocaleString();
-    if (el3) el3.textContent = incidentRate + '%';
+    document.getElementById('totalManpower').textContent = totalManpower.toLocaleString();
+    document.getElementById('safeManHours').textContent = safeManHours.toLocaleString();
+    document.getElementById('incidentRate').textContent = incidentRate + '%';
 }
 
 function updateSafetyTable() {
     const tbody = document.querySelector('#safetyTable tbody');
-    if (!tbody) return;
     tbody.innerHTML = '';
     const selectedProjectId = getProjectId(AppState.safetySelectedProject);
     let filteredSafety = [...AppState.data.safety];
@@ -833,7 +730,6 @@ function setupDocumentFilters() {
 function renderDocuments() {
     const grid = document.getElementById('documentsGrid');
     const resultsInfo = document.getElementById('searchResults');
-    if (!grid || !resultsInfo) return;
     grid.innerHTML = '';
 
     const documents = AppState.data.documents || [];
@@ -898,11 +794,10 @@ function performDocumentSearch() { renderDocuments(); }
 
 function openDocumentModal(doc) {
     const modal = document.getElementById('documentModal');
-    if (!modal) return;
     const title = document.getElementById('modalTitle');
     const preview = document.getElementById('documentPreview');
-    if (title) title.textContent = doc.Document_Name || 'Unnamed Document';
-    if (preview) preview.innerHTML = `
+    title.textContent = doc.Document_Name || 'Unnamed Document';
+    preview.innerHTML = `
         <div style="padding: 20px; background: var(--color-bg-1); border-radius: 8px;">
             <h4>Document Information</h4>
             <p><strong>ID:</strong> ${doc.Document_ID || 'N/A'}</p>
@@ -920,10 +815,57 @@ function openDocumentModal(doc) {
 
 function closeDocumentModal() {
     const modal = document.getElementById('documentModal');
-    if (modal) modal.classList.add('hidden');
+    modal.classList.add('hidden');
 }
 
-// Reports / PPTX
+// =======================================================
+// Reports / PPTX  —>> UPDATED WITH YOUR DESIGN
+// =======================================================
+
+// --- PPTX helpers & theme (NEW) ---
+const ASSETS_BASE = './assets'; // ubah jika folder berbeda
+const PPT_THEME = {
+  bg: 'FFFFFF',
+  brandDark: '1F4E5C',
+  brandTeal: '21808D',
+  accent: 'FFC185',
+  muted: '6B7C85',
+  tableHeaderBg: 'EDF2F5',
+  tileBg: 'F5F7F9'
+};
+
+// Convert image url to dataURL (works in same-origin / CORS enabled)
+async function imgToDataURL(url) {
+  const res = await fetch(url, { cache: 'no-store' });
+  const blob = await res.blob();
+  return await new Promise((resolve) => {
+    const fr = new FileReader();
+    fr.onload = () => resolve(fr.result);
+    fr.readAsDataURL(blob);
+  });
+}
+
+function addDividerSlide(pptx, title, logos) {
+  const s = pptx.addSlide({ bkgd: 'BFBFBF' });
+  if (logos?.pertamina) s.addImage({ data: logos.pertamina, x: 8.8, y: 0.2, w: 1, h: 1 });
+  if (logos?.danan)     s.addImage({ data: logos.danan,     x: 0.2, y: 0.2, w: 1.6, h: 1 });
+  s.addShape(pptx.ShapeType.rect, { x: 2, y: 2.2, w: 6, h: 1.2, fill: 'FFFFFF' });
+  s.addText(title, { x: 2, y: 2.2, w: 6, h: 1.2, fontSize: 28, align: 'center', bold: true, color: PPT_THEME.brandDark });
+  return s;
+}
+
+function addZebraTable(slide, rows) {
+  slide.addTable(rows, {
+    x: 0.5, y: 1.5, w: 9, h: 4.6,
+    border: { type: 'solid', color: 'D5DCE3', pt: 1 },
+    fill: 'FFFFFF',
+    header: true,
+    fillHdr: PPT_THEME.tableHeaderBg,
+    fontSize: 12,
+    alternateRowFill: 'FAFBFC'
+  });
+}
+
 function initializeReports() {
     updateReportsTable();
     setupReportGeneration();
@@ -934,15 +876,12 @@ function initializeReports() {
 function setupDateInputs() {
     const today = new Date();
     const twoWeeksAgo = new Date(today.getTime() - (14 * 24 * 60 * 60 * 1000));
-    const sd = document.getElementById('startDate');
-    const ed = document.getElementById('endDate');
-    if (sd) sd.value = twoWeeksAgo.toISOString().split('T')[0];
-    if (ed) ed.value = today.toISOString().split('T')[0];
+    document.getElementById('startDate').value = twoWeeksAgo.toISOString().split('T')[0];
+    document.getElementById('endDate').value = today.toISOString().split('T')[0];
 }
 
 function setupReportGeneration() {
     const generateBtn = document.getElementById('generateReport');
-    if (!generateBtn) return;
     generateBtn.addEventListener('click', generateReport);
 }
 
@@ -968,6 +907,7 @@ function generateReport() {
     const project = document.getElementById('reportProject').value;
 
     showNotification('Generating PowerPoint report...', 'info');
+    // UPDATED: now async but we don't await to keep UX responsive
     generatePowerPointReport(type, project, startDate, endDate);
 
     const reportRecord = {
@@ -983,74 +923,135 @@ function generateReport() {
     updateReportsTable();
 }
 
-function generatePowerPointReport(type, project, startDate, endDate) {
-    try {
-        if (typeof PptxGenJS === 'undefined') {
-            showNotification('PowerPoint library not loaded. Generating fallback report...', 'warning');
-            generateFallbackReport(type, project, startDate, endDate);
-            return;
-        }
-        const pptx = new PptxGenJS();
-        pptx.author = 'Pertamina Construction Dashboard';
-        pptx.company = 'Pertamina';
-        pptx.title = `Pertamina Construction ${type.charAt(0).toUpperCase() + type.slice(1)} Report`;
-        const filteredProjects = project === 'all' ? AppState.data.projects : AppState.data.projects.filter(p => p.Project_Name === project);
-
-        let slide1 = pptx.addSlide();
-        slide1.addText('PERTAMINA', { x: 0.5, y: 0.5, w: 9, h: 1, fontSize: 32, bold: true, color: '1F4E5C', align: 'center' });
-        slide1.addText(`Construction ${type.charAt(0).toUpperCase() + type.slice(1)} Report`, { x: 1, y: 2, w: 8, h: 1.5, fontSize: 28, bold: true, color: '21808D', align: 'center' });
-        slide1.addText(project === 'all' ? 'Semua Proyek' : project, { x: 1, y: 3.5, w: 8, h: 1, fontSize: 24, color: '626C71', align: 'center' });
-        slide1.addText(`Period: ${startDate} to ${endDate}`, { x: 1, y: 4.5, w: 8, h: 1, fontSize: 18, color: '626C71', align: 'center' });
-        slide1.addText('Generated by Construction Dashboard AI', { x: 1, y: 6, w: 8, h: 0.5, fontSize: 14, color: '626C71', align: 'center' });
-
-        let slide2 = pptx.addSlide();
-        slide2.addText('Executive Summary', { x: 0.5, y: 0.5, w: 9, h: 1, fontSize: 24, bold: true, color: '1F4E5C' });
-        const totalProjects = filteredProjects.length;
-        const avgProgress = totalProjects > 0 ? Math.round(filteredProjects.reduce((sum, p) => sum + p.Progress_Percent, 0) / totalProjects) : 0;
-        const avgSafety = totalProjects > 0 ? Math.round(filteredProjects.reduce((sum, p) => sum + p.Safety_Score, 0) / totalProjects) : 0;
-        const activePermits = AppState.data.permits.filter(p => p.Status === 'Open').length;
-        slide2.addText(`Total Projects: ${totalProjects}`, { x: 1, y: 2, w: 8, h: 0.5, fontSize: 16 });
-        slide2.addText(`Average Progress: ${avgProgress}%`, { x: 1, y: 2.5, w: 8, h: 0.5, fontSize: 16 });
-        slide2.addText(`Average Safety Score: ${avgSafety}%`, { x: 1, y: 3, w: 8, h: 0.5, fontSize: 16 });
-        slide2.addText(`Active Permits: ${activePermits}`, { x: 1, y: 3.5, w: 8, h: 0.5, fontSize: 16 });
-        slide2.addText(`Generated: ${new Date().toLocaleString('id-ID')}`, { x: 1, y: 4, w: 8, h: 0.5, fontSize: 14, color: '626C71' });
-
-        let slide3 = pptx.addSlide();
-        slide3.addText('Project Details', { x: 0.5, y: 0.5, w: 9, h: 1, fontSize: 24, bold: true, color: '1F4E5C' });
-        const projectTableData = [[
-            { text: 'Project Name', options: { bold: true, color: '1F4E5C' } },
-            { text: 'Progress %', options: { bold: true, color: '1F4E5C' } },
-            { text: 'Safety Score', options: { bold: true, color: '1F4E5C' } },
-            { text: 'Budget Used %', options: { bold: true, color: '1F4E5C' } }
-        ]];
-        filteredProjects.slice(0, 6).forEach(project => {
-            projectTableData.push([
-                { text: project.Project_Name.replace(' Substation', ''), options: { fontSize: 12 } },
-                { text: `${project.Progress_Percent}%`, options: { fontSize: 12 } },
-                { text: `${project.Safety_Score}%`, options: { fontSize: 12 } },
-                { text: `${project.Budget_Used_Percent}%`, options: { fontSize: 12 } }
-            ]);
-        });
-        slide3.addTable(projectTableData, { x: 1, y: 2, w: 8, h: 4, border: { type: 'solid', color: '1F4E5C', pt: 1 } });
-
-        let slide4 = pptx.addSlide();
-        slide4.addText('Safety Analysis', { x: 0.5, y: 0.5, w: 9, h: 1, fontSize: 24, bold: true, color: '1F4E5C' });
-        const totalManpower = AppState.data.safety.reduce((sum, item) => sum + (item.Total_Manpower || 0), 0);
-        const safeManHours = AppState.data.safety.reduce((sum, item) => sum + (item.Safe_Man_Hours || 0), 0);
-        slide4.addText(`Total Manpower: ${totalManpower.toLocaleString()}`, { x: 1, y: 2, w: 8, h: 0.5, fontSize: 16 });
-        slide4.addText(`Safe Man Hours: ${safeManHours.toLocaleString()}`, { x: 1, y: 2.5, w: 8, h: 0.5, fontSize: 16 });
-        slide4.addText(`Total Issues: ${AppState.data.issues.length}`, { x: 1, y: 3, w: 8, h: 0.5, fontSize: 16 });
-        slide4.addText(`Total Plans: ${AppState.data.plans.length}`, { x: 1, y: 3.5, w: 8, h: 0.5, fontSize: 16 });
-
-        const fileName = `Pertamina_${type}_Report_${new Date().toISOString().split('T')[0]}.pptx`;
-        pptx.writeFile({ fileName });
-        showNotification('PowerPoint report berhasil didownload!', 'success');
-    } catch (error) {
-        console.error('Error generating PowerPoint:', error);
-        showNotification('Error generating PowerPoint: ' + error.message, 'error');
-        generateFallbackReport(type, project, startDate, endDate);
+// ==================== REPLACED WITH YOUR DESIGN ====================
+async function generatePowerPointReport(type, project, startDate, endDate) {
+  try {
+    if (typeof PptxGenJS === 'undefined') {
+      showNotification('PowerPoint library not loaded. Generating fallback report...', 'warning');
+      generateFallbackReport(type, project, startDate, endDate);
+      return;
     }
+
+    // Preload assets
+    const coverPath = `${ASSETS_BASE}/cover_weekly.png`;
+    const logoPertaminaPath = `${ASSETS_BASE}/logo_pertamina.png`;
+    const logoDananPath = `${ASSETS_BASE}/logo_danan.png`;
+
+    const [coverImg, logoPertamina, logoDanan] = await Promise.all([
+      imgToDataURL(coverPath).catch(()=>null),
+      imgToDataURL(logoPertaminaPath).catch(()=>null),
+      imgToDataURL(logoDananPath).catch(()=>null),
+    ]);
+
+    const pptx = new PptxGenJS();
+    pptx.layout = 'LAYOUT_16x9';
+    pptx.author = 'Pertamina Construction Dashboard';
+    pptx.company = 'Pertamina';
+    pptx.title = `Pertamina Construction ${type?.charAt(0).toUpperCase() + type?.slice(1)} Report`;
+
+    const filteredProjects = project === 'all'
+      ? AppState.data.projects
+      : AppState.data.projects.filter(p => p.Project_Name === project);
+
+    // KPIs
+    const totalProjects = filteredProjects.length || AppState.data.projects.length;
+    const baseProjects = filteredProjects.length ? filteredProjects : AppState.data.projects;
+    const avgProgress = totalProjects ? Math.round(baseProjects.reduce((s,p)=>s+(p.Progress_Percent||0),0)/totalProjects) : 0;
+    const avgSafety   = totalProjects ? Math.round(baseProjects.reduce((s,p)=>s+(p.Safety_Score||0),0)/totalProjects) : 0;
+    const activePermits = AppState.data.permits.filter(p=>p.Status==='Open').length;
+    const totalManpower = AppState.data.safety.reduce((sum,i)=>sum+(i.Total_Manpower||0),0);
+    const safeManHours  = AppState.data.safety.reduce((sum,i)=>sum+(i.Safe_Man_Hours||0),0);
+
+    // ---------- Slide 1: COVER ----------
+    {
+      const s = pptx.addSlide();
+      if (coverImg) s.addImage({ data: coverImg, x: 0, y: 0, w: 10, h: 5.63 });
+      if (logoPertamina) s.addImage({ data: logoPertamina, x: 8.8, y: 0.2, w: 1.1, h: 1.1 });
+      if (logoDanan)     s.addImage({ data: logoDanan,     x: 0.2, y: 0.2, w: 1.7, h: 1.1 });
+
+      s.addShape(pptx.ShapeType.rect, { x: 1.0, y: 0.6, w: 8.0, h: 2.3, fill: { color: '2E6F86', transparency: 35 } });
+      s.addText('Construction Weekly Report', { x: 1.3, y: 0.8, w: 7.4, h: 0.8, fontSize: 28, bold: true, color: 'FFFFFF' });
+      s.addText(project === 'all' ? 'Semua Proyek' : project, { x: 1.3, y: 1.5, w: 7.4, h: 0.6, fontSize: 24, bold: true, color: 'FFFFFF' });
+      s.addText(`Period: ${startDate} to ${endDate}`, { x: 1.3, y: 2.1, w: 7.4, h: 0.6, fontSize: 22, bold: true, color: 'FFFFFF' });
+    }
+
+    // ---------- Slide 2: EXECUTIVE SUMMARY (Divider) ----------
+    const logos = { pertamina: logoPertamina, danan: logoDanan };
+    addDividerSlide(pptx, 'Executive Summary', logos);
+
+    // ---------- Slide 3: EXECUTIVE SUMMARY CONTENT ----------
+    {
+      const s = pptx.addSlide();
+      if (logoPertamina) s.addImage({ data: logoPertamina, x: 8.8, y: 0.2, w: 1.1, h: 1.1 });
+      if (logoDanan)     s.addImage({ data: logoDanan,     x: 0.2, y: 0.2, w: 1.7, h: 1.1 });
+
+      const lines = [
+        `Total Projects: ${totalProjects}`,
+        `Average Progress: ${avgProgress}%`,
+        `Average Safety Score: ${avgSafety}%`,
+        `Active Permits: ${activePermits}`,
+        `Generated: ${new Date().toLocaleString('id-ID')}`
+      ];
+      s.addText(lines.join('\n\n'), { x: 1.0, y: 2.0, w: 8.0, h: 3.2, fontSize: 22, color: PPT_THEME.brandDark, bold: false });
+    }
+
+    // ---------- Slide 4: PROGRESS DETAILS (Divider) ----------
+    addDividerSlide(pptx, 'Progress Project Details', logos);
+
+    // ---------- Slide 5: PROJECT TABLE ----------
+    {
+      const s = pptx.addSlide();
+      if (logoPertamina) s.addImage({ data: logoPertamina, x: 8.8, y: 0.2, w: 1.1, h: 1.1 });
+      if (logoDanan)     s.addImage({ data: logoDanan,     x: 0.2, y: 0.2, w: 1.7, h: 1.1 });
+
+      const rows = [[
+        { text: 'Project Name', options: { bold: true, color: PPT_THEME.brandDark } },
+        { text: 'Progress %',  options: { bold: true, color: PPT_THEME.brandDark } },
+        { text: 'Safety Score',options: { bold: true, color: PPT_THEME.brandDark } },
+        { text: 'Budget Used %', options: { bold: true, color: PPT_THEME.brandDark } }
+      ]];
+
+      baseProjects.forEach(p=>{
+        rows.push([
+          p.Project_Name?.replace(' Substation','') || '—',
+          `${Number(p.Progress_Percent || 0).toFixed(1)}%`,
+          `${Number(p.Safety_Score || 0).toFixed(1)}%`,
+          `${Number(p.Budget_Used_Percent || 0).toFixed(1)}%`
+        ]);
+      });
+
+      addZebraTable(s, rows);
+    }
+
+    // ---------- Slide 6: SAFETY (Divider) ----------
+    addDividerSlide(pptx, 'Safety Analysis', logos);
+
+    // ---------- Slide 7: SAFETY CONTENT ----------
+    {
+      const s = pptx.addSlide();
+      if (logoPertamina) s.addImage({ data: logoPertamina, x: 8.8, y: 0.2, w: 1.1, h: 1.1 });
+      if (logoDanan)     s.addImage({ data: logoDanan,     x: 0.2, y: 0.2, w: 1.7, h: 1.1 });
+
+      const lines = [
+        `Total Manpower: ${totalManpower.toLocaleString()}`,
+        `Safe Man Hours: ${safeManHours.toLocaleString()}`,
+        `Total Issues: ${AppState.data.issues.length}`,
+        `Total Plans: ${AppState.data.plans.length}`
+      ];
+      s.addText(lines.join('\n\n'), { x: 1.0, y: 2.0, w: 8.0, h: 3.2, fontSize: 22, color: PPT_THEME.brandDark });
+    }
+
+    const fileName = `Pertamina_${type}_Report_${new Date().toISOString().split('T')[0]}.pptx`;
+    await pptx.writeFile({ fileName });
+    showNotification('PowerPoint report berhasil didownload!', 'success');
+
+  } catch (error) {
+    console.error('Error generating PowerPoint:', error);
+    showNotification('Error generating PowerPoint: ' + error.message, 'error');
+    generateFallbackReport(type, project, startDate, endDate);
+  }
 }
+// ==================== END REPLACED ====================
 
 function generateFallbackReport(type, project, startDate, endDate) {
     const fileName = `Pertamina_${type}_Report_${new Date().toISOString().split('T')[0]}.txt`;
