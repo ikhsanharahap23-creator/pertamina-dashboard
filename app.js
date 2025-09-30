@@ -951,32 +951,34 @@ async function generatePowerPointReport(type, project, startDate, endDate) {
     fill: { color: '000000', transparency: 35 }
   });
 
-  // 3) Logo kiri & kanan (di dalam safe area)
- // Logo kiri (Danantara) — kecilkan
-if (logoDanan) {
-  s.addImage({
-    data: logoDanan,
-    x: M,           // tetap di safe area
-    y: M,
-    w: 1.4,        // <= perkecil (sebelumnya 1.9)
-    h: 0.9,        // <= perkecil (sebelumnya 1.2)
-    sizing: { type: 'contain', w: 1.4, h: 0.9 }
-  });
-}
+  // 3) Logo kiri & kanan (proporsional, di dalam safe area)
+  // Rasio dari file logo:
+  // - Danantara: 1143x293 => aspect ≈ 3.902
+  // - Pertamina:  466x108 => aspect ≈ 4.315
+  const LOGO_SCALE = 1.0;        // ubah ke 0.9/1.1 untuk kecil/besar serentak
+  const DANAN_H = 0.60 * LOGO_SCALE;
+  const PERT_H  = 0.55 * LOGO_SCALE;
+  const DANAN_W = DANAN_H * (1143/293);
+  const PERT_W  = PERT_H  * (466/108);
 
-// Logo kanan (Pertamina) — kecilkan
-if (logoPertamina) {
-  const logoRightW = 1.2;  // <= perkecil (sebelumnya 1.6)
-  const logoRightH = 0.68; // <= perkecil (sebelumnya 0.9)
-  s.addImage({
-    data: logoPertamina,
-    x: SLIDE_W - M - logoRightW,
-    y: M + 0.02,
-    w: logoRightW,
-    h: logoRightH,
-    sizing: { type: 'contain', w: logoRightW, h: logoRightH }
-  });
-}
+  if (logoDanan) {
+    s.addImage({
+      data: logoDanan,
+      x: M,
+      y: M,
+      w: DANAN_W,
+      h: DANAN_H
+    });
+  }
+  if (logoPertamina) {
+    s.addImage({
+      data: logoPertamina,
+      x: SLIDE_W - M - PERT_W,
+      y: M + 0.02,
+      w: PERT_W,
+      h: PERT_H
+    });
+  }
 
   // 4) Teks (hierarki: judul > subjudul > periode)
   const title   = 'Construction Weekly Report';
@@ -1016,23 +1018,18 @@ const addDivider = (title) => {
     fill: { color: '000000', transparency: 70 }
   });
 
-  // Logo lebih kecil & di safe area
+  // Logo proporsional (pakai skala yang sama biar konsisten)
+  const LOGO_SCALE = 1.0;
+  const DANAN_H = 0.60 * LOGO_SCALE;
+  const PERT_H  = 0.55 * LOGO_SCALE;
+  const DANAN_W = DANAN_H * (1143/293);
+  const PERT_W  = PERT_H  * (466/108);
+
   if (logoDanan) {
-    s.addImage({
-      data: logoDanan,
-      x: M, y: M, w: 1.4, h: 0.9,
-      sizing: { type: 'contain', w: 1.4, h: 0.9 }
-    });
+    s.addImage({ data: logoDanan, x: M, y: M, w: DANAN_W, h: DANAN_H });
   }
   if (logoPertamina) {
-    const logoRightW = 1.2, logoRightH = 0.68;
-    s.addImage({
-      data: logoPertamina,
-      x: SLIDE_W - M - logoRightW,
-      y: M + 0.02,
-      w: logoRightW, h: logoRightH,
-      sizing: { type: 'contain', w: logoRightW, h: logoRightH }
-    });
+    s.addImage({ data: logoPertamina, x: SLIDE_W - M - PERT_W, y: M + 0.02, w: PERT_W, h: PERT_H });
   }
 
   // Judul divider di tengah
