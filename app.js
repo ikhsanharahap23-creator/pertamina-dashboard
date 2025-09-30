@@ -952,12 +952,31 @@ async function generatePowerPointReport(type, project, startDate, endDate) {
   });
 
   // 3) Logo kiri & kanan (di dalam safe area)
-  if (logoDanan) {
-    s.addImage({ data: logoDanan, x: M, y: M, w: 1.9, h: 1.2 });
-  }
-  if (logoPertamina) {
-    s.addImage({ data: logoPertamina, x: SLIDE_W - M - 1.6, y: M, w: 1.6, h: 0.9 });
-  }
+ // Logo kiri (Danantara) — kecilkan
+if (logoDanan) {
+  s.addImage({
+    data: logoDanan,
+    x: M,           // tetap di safe area
+    y: M,
+    w: 1.4,        // <= perkecil (sebelumnya 1.9)
+    h: 0.9,        // <= perkecil (sebelumnya 1.2)
+    sizing: { type: 'contain', w: 1.4, h: 0.9 }
+  });
+}
+
+// Logo kanan (Pertamina) — kecilkan
+if (logoPertamina) {
+  const logoRightW = 1.2;  // <= perkecil (sebelumnya 1.6)
+  const logoRightH = 0.68; // <= perkecil (sebelumnya 0.9)
+  s.addImage({
+    data: logoPertamina,
+    x: SLIDE_W - M - logoRightW,
+    y: M + 0.02,
+    w: logoRightW,
+    h: logoRightH,
+    sizing: { type: 'contain', w: logoRightW, h: logoRightH }
+  });
+}
 
   // 4) Teks (hierarki: judul > subjudul > periode)
   const title   = 'Construction Weekly Report';
@@ -988,7 +1007,7 @@ const addDivider = (title) => {
   const SLIDE_H = 5.63;
   const M = 0.5;
 
-  // Background reuse
+  // Pakai background yang sama (full-bleed)
   if (coverImg) s.addImage({ data: coverImg, x: 0, y: 0, w: SLIDE_W, h: SLIDE_H });
 
   // Overlay gelap tipis agar teks kebaca
@@ -997,9 +1016,24 @@ const addDivider = (title) => {
     fill: { color: '000000', transparency: 70 }
   });
 
-  // Logo di safe area
-  if (logoDanan)     s.addImage({ data: logoDanan,     x: M, y: M, w: 1.9, h: 1.2 });
-  if (logoPertamina) s.addImage({ data: logoPertamina, x: SLIDE_W - M - 1.6, y: M, w: 1.6, h: 0.9 });
+  // Logo lebih kecil & di safe area
+  if (logoDanan) {
+    s.addImage({
+      data: logoDanan,
+      x: M, y: M, w: 1.4, h: 0.9,
+      sizing: { type: 'contain', w: 1.4, h: 0.9 }
+    });
+  }
+  if (logoPertamina) {
+    const logoRightW = 1.2, logoRightH = 0.68;
+    s.addImage({
+      data: logoPertamina,
+      x: SLIDE_W - M - logoRightW,
+      y: M + 0.02,
+      w: logoRightW, h: logoRightH,
+      sizing: { type: 'contain', w: logoRightW, h: logoRightH }
+    });
+  }
 
   // Judul divider di tengah
   s.addText(title, {
@@ -1007,6 +1041,7 @@ const addDivider = (title) => {
     fontFace: 'Arial', fontSize: 34, bold: true, color: 'FFFFFF', align: 'center'
   });
 };
+
 
     // ---------- Slide 2: EXECUTIVE SUMMARY (Divider) ----------
     addDivider('Executive Summary');
