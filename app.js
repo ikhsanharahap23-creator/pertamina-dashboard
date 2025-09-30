@@ -902,7 +902,8 @@ async function generateReport() {
 
 // === DROP-IN REPLACEMENT ===
 // Layout meniru "Laporan PPT.pptx" (16:9 - 10" x 5.625")
-async function generatePowerPointReport(type, project, startDate, endDate) {
+async function generatePowerPointReport(type, project, startDate, endDate)
+  .catch(err => console.error("Report error:", err)); {
   try {
     if (typeof PptxGenJS === 'undefined') {
       showNotification('PowerPoint library not loaded. Generating fallback report...', 'warning');
