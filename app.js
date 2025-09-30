@@ -900,142 +900,269 @@ async function generateReport() {
     updateReportsTable();
 }
 
-// === GENERATE POWERPOINT (FINAL) ===
+// === DROP-IN REPLACEMENT ===
+// Layout meniru "Laporan PPT.pptx" (16:9 - 10" x 5.625")
 async function generatePowerPointReport(type, project, startDate, endDate) {
   try {
-    if (typeof PptxGenJS === 'undefined') throw new Error('PptxGenJS not loaded');
+    if (typeof PptxGenJS === 'undefined') {
+      showNotification('PowerPoint library not loaded. Generating fallback report...', 'warning');
+      generateFallbackReport(type, project, startDate, endDate);
+      return;
+    }
+
+    // ------- THEME / CONSTANTS -------
+    const SLIDE_W = 10, SLIDE_H = 5.625; // inch
+    const COLORS = {
+      text: '173A4A',   // #173A4A (dark teal)
+      grayBG: 'C9C5C5', // section bg (abu-abu)
+      white: 'FFFFFF',
+      brandBlue: '1FB8CD',
+      brandRed: 'E21E26'
+    };
+    const FONTS = { title: 36, h1: 24, h2: 20, body: 18, small: 14 };
 
     const pptx = new PptxGenJS();
-    pptx.author  = 'Pertamina Construction Dashboard';
+    pptx.author = 'Pertamina Construction Dashboard';
     pptx.company = 'Pertamina';
-    pptx.title   = `Pertamina Construction ${type.charAt(0).toUpperCase() + type.slice(1)} Report`;
+    pptx.layout = 'LAYOUT_16x9';
+    pptx.title = `Construction ${type.charAt(0).toUpperCase() + type.slice(1)} Report`;
 
-    // Ukuran default PptxGenJS = 10 x 5.63 in (16:9) – cocok dengan desain kamu
-    const W = 10, H = 5.63;
-
-    // Filter project (all / single)
-    const filtered = project === 'all'
+    // Filter data
+    const filteredProjects = (project === 'all')
       ? [...AppState.data.projects]
       : AppState.data.projects.filter(p => p.Project_Name === project);
 
-    // =========================
-    // SLIDE 1 — COVER
-    // =========================
-    const s1 = pptx.addSlide();
-    // full background cover
-    s1.addImage({ path: ASSETS.cover, x: 0, y: 0, w: W, h: H });
+    const periodText = `Period: ${startDate} to ${endDate}`;
+    const scopeText  = (project === 'all') ? 'Semua Proyek' : project;
 
-    // judul di overlay (warna putih agar terbaca)
-    const covX = 1.1;
-    s1.addText(`Construction ${type.charAt(0).toUpperCase() + type.slice(1)} Report`, {
-      x: covX, y: 2.0, w: 8.0, h: 0.6, fontSize: 26, bold: true, color: 'FFFFFF'
-    });
-    s1.addText(project === 'all' ? 'Semua Proyek' : project, {
-      x: covX, y: 2.65, w: 8.0, h: 0.5, fontSize: 22, color: 'FFFFFF'
-    });
-    s1.addText(`Period: ${startDate} to ${endDate}`, {
-      x: covX, y: 3.15, w: 8.0, h: 0.5, fontSize: 18, color: 'FFFFFF'
-    });
+    // Preload assets (browser butuh dataURL)
+    const coverImg = await loadAsDataUrl(absPath(ASSETS.cover));
+    const logoDanan = await loadAsDataUrl(absPath(ASSETS.logoDanan));
+    const logoPert = await loadAsDataUrl(absPath(ASSETS.logoPertamina));
 
-    // Logo pojok sesuai cover (kiri sudah ada di gambar cover, kanan kita tambahkan)
-    s1.addImage({ path: ASSETS.logoPertamina, x: 8.05, y: 0.28, w: 1.7, h: 0.75 });
+    // ------- Helpers posisi tetap (inch) -------
+    const addCornerLogos = (slide) => {
+      // Danantara: kiri atas
+      slide.addImage({ data: logoDanan, x: 0.35, y: 0.28, w: 2.6, h: 0.85 });
+      // Pertamina: kanan atas
+      slide.addImage({ data: logoPert, x: SLIDE_W - 1.9, y: 0.25, w: 1.6, h: 0.9 });
+    };
 
-    // =========================
-    // SLIDE 2 — TITLE: Executive Summary
-    // =========================
-    const s2 = pptx.addSlide();
-    addTitleBandSlide(s2, 'Executive Summary');
-    addTopRightLogo(s2); // hanya logo Pertamina seperti desain judul
-    addRedPillBottomLeft(s2);
+    const addSectionHeader = (slide, titleText) => {
+      // background abu-abu (panel besar seperti template kamu)
+      slide.addShape(pptx.shapes.RECTANGLE, {
+        x: 0.6, y: 0.9, w: SLIDE_W - 1.2, h: 3.8,
+        fill: COLORS.grayBG, line: { color: COLORS.grayBG }
+      });
+      // pill putih di tengah
+      slide.addShape(pptx.shapes.ROUNDED_RECTANGLE, {
+        x: 1.2, y: 2.1, w: SLIDE_W - 2.4, h: 1.0, rx: 0.25, ry: 0.25,
+        fill: COLORS.white, line: { color: COLORS.white }
+      });
+      slide.addText(titleText, {
+        x: 1.2, y: 2.25, w: SLIDE_W - 2.4, h: 0.7,
+        fontSize: FONTS.h1, bold: true, color: COLORS.text, align: 'center'
+      });
+      // aksen merah (kapsul kiri bawah)
+      slide.addShape(pptx.shapes.ROUNDED_RECTANGLE, {
+        x: 0.75, y: 4.85, w: 2.6, h: 0.55, rx: 0.25, ry: 0.25,
+        fill: COLORS.brandRed, line: { color: COLORS.brandRed }
+      });
+      // logo pertamina di kanan atas panel
+      slide.addImage({ data: logoPert, x: SLIDE_W - 2.1, y: 1.05, w: 1.75, h: 1.0 });
+    };
 
-    // =========================
-    // SLIDE 3 — EXECUTIVE SUMMARY (ISI)
-    // =========================
-    const s3 = pptx.addSlide();
-    s3.background = { fill: 'FFFFFF' };
-    addCornerLogos(s3); // Danantara kiri, Pertamina kanan
+    const addContentCard = (slide) => {
+      // kartu putih tengah (untuk summary & table)
+      slide.addShape(pptx.shapes.RECTANGLE, {
+        x: 1.1, y: 1.15, w: SLIDE_W - 2.2, h: 3.35,
+        fill: COLORS.white, line: { color: 'D9D9D9' }
+      });
+    };
 
-    const totalProjects = filtered.length;
-    const avgProgress = totalProjects ? Math.round(filtered.reduce((s,p)=>s+(+p.Progress_Percent||0),0)/totalProjects) : 0;
-    const avgSafety   = totalProjects ? Math.round(filtered.reduce((s,p)=>s+(+p.Safety_Score||0),0)/totalProjects) : 0;
-    const activePermits = AppState.data.permits.filter(p => (p.Status||'').toLowerCase()==='open').length;
+    // =========================================================
+    // 1) COVER – full-bleed image + overlay gelap + teks kiri
+    // =========================================================
+    {
+      const s = pptx.addSlide();
+      // gambar cover full
+      s.addImage({ data: coverImg, x: 0, y: 0, w: SLIDE_W, h: SLIDE_H });
 
-    const metricsX = 1.3, lineH = 0.7;
-    s3.addText('Total Projects: ' + totalProjects, { x: metricsX, y: 1.6, fontSize: 26, bold: true, color: '14364A' });
-    s3.addText('Average Progress: ' + avgProgress + '%', { x: metricsX, y: 1.6 + lineH, fontSize: 26, bold: true, color: '14364A' });
-    s3.addText('Average Safety Score: ' + avgSafety + '%', { x: metricsX, y: 1.6 + lineH*2, fontSize: 26, bold: true, color: '14364A' });
-    s3.addText('Active Permits: ' + activePermits, { x: metricsX, y: 1.6 + lineH*3, fontSize: 26, bold: true, color: '14364A' });
+      // overlay gelap transparan (sesuai contoh)
+      s.addShape(pptx.shapes.RECTANGLE, {
+        x: 1.15, y: 1.35, w: 7.9, h: 2.6,
+        fill: { color: '000000', transparency: 30 },
+        line: { color: '000000', transparency: 100 }
+      });
 
-    // =========================
-    // SLIDE 4 — TITLE: Progress Project Details
-    // =========================
-    const s4 = pptx.addSlide();
-    addTitleBandSlide(s4, 'Progress Project Details');
-    addTopRightLogo(s4);
-    addRedPillBottomLeft(s4);
+      // Logo Danantara di atas overlay
+      s.addImage({ data: logoDanan, x: 1.5, y: 0.8, w: 3.0, h: 1.0 });
 
-    // =========================
-    // SLIDE 5 — TABEL PROJECT
-    // =========================
-    const s5 = pptx.addSlide();
-    s5.background = { fill: 'FFFFFF' };
-    addCornerLogos(s5);
+      // badge logo pertamina kanan atas (dengan pill putih)
+      s.addShape(pptx.shapes.ROUNDED_RECTANGLE, {
+        x: SLIDE_W - 2.35, y: 0.65, w: 2.0, h: 1.0, rx: 0.25, ry: 0.25,
+        fill: COLORS.white, line: { color: COLORS.white }
+      });
+      s.addImage({ data: logoPert, x: SLIDE_W - 2.25, y: 0.70, w: 1.8, h: 0.9 });
 
-    // data tabel (maks 7 baris sesuai contoh visual)
-    const headerRow = [
-      { text: 'Project Name', options: { bold: true, color: '14364A' } },
-      { text: 'Progress %',  options: { bold: true, color: '14364A' } },
-      { text: 'Safety Score',options: { bold: true, color: '14364A' } },
-      { text: 'Budget Used %', options: { bold: true, color: '14364A' } }
-    ];
-    const rows = buildProjectRows(filtered.slice(0, 7));
-    const table = [headerRow, ...rows];
+      // Judul & teks (posisi mengikuti contoh kamu)
+      s.addText(`Construction ${type.charAt(0).toUpperCase() + type.slice(1)} Report`, {
+        x: 1.6, y: 2.0, w: 6.8, h: 0.6,
+        fontSize: 26, bold: true, color: COLORS.white
+      });
+      s.addText(scopeText, {
+        x: 1.6, y: 2.55, w: 6.8, h: 0.45,
+        fontSize: 20, bold: true, color: COLORS.white
+      });
+      s.addText(periodText, {
+        x: 1.6, y: 3.15, w: 6.8, h: 0.45,
+        fontSize: 18, bold: true, color: COLORS.white
+      });
+    }
 
-    s5.addTable(table, {
-      x: 1.05, y: 1.65, w: 7.9,
-      border: { type: 'solid', color: '1F4E5C', pt: 1 },
-      fontSize: 14,
-      colW: [3.4, 1.5, 1.6, 1.8],
-      valign: 'middle',
-      fill: 'FFFFFF'
-    });
+    // =========================================================
+    // 2) SECTION: Executive Summary (slide judul)
+    // =========================================================
+    {
+      const s = pptx.addSlide();
+      addSectionHeader(s, 'Executive Summary');
+    }
 
-    // =========================
-    // SLIDE 6 — TITLE: Safety Analysis
-    // =========================
-    const s6 = pptx.addSlide();
-    addTitleBandSlide(s6, 'Safety Analysis');
-    addTopRightLogo(s6);
-    addRedPillBottomLeft(s6);
+    // =========================================================
+    // 3) EXECUTIVE SUMMARY CONTENT (card putih + logos)
+    // =========================================================
+    {
+      const s = pptx.addSlide();
+      addCornerLogos(s);
+      addContentCard(s);
 
-    // =========================
-    // SLIDE 7 — SAFETY SUMMARY (ISI)
-    // =========================
-    const s7 = pptx.addSlide();
-    s7.background = { fill: 'FFFFFF' };
-    addCornerLogos(s7);
+      const totalProjects = filteredProjects.length;
+      const avgProgress = totalProjects > 0
+        ? Math.round(filteredProjects.reduce((sum, p) => sum + (Number(p.Progress_Percent) || 0), 0) / totalProjects)
+        : 0;
+      const avgSafety = totalProjects > 0
+        ? Math.round(filteredProjects.reduce((sum, p) => sum + (Number(p.Safety_Score) || 0), 0) / totalProjects)
+        : 0;
+      const activePermits = (AppState.data.permits || []).filter(p => p.Status === 'Open').length;
 
-    const totalManpower = AppState.data.safety.reduce((sum, r)=> sum + (+r.Total_Manpower||0), 0);
-    const safeManHours  = AppState.data.safety.reduce((sum, r)=> sum + (+r.Safe_Man_Hours||0), 0);
-    const issuesCount   = AppState.data.issues.length;
-    const plansCount    = AppState.data.plans.length;
+      const left = 1.45, width = 6.8;
+      let y = 1.55;
 
-    const sx = 1.3;
-    s7.addText(`Total Manpower: ${totalManpower.toLocaleString('id-ID')}`, { x: sx, y: 1.6, fontSize: 28, bold: true, color: '14364A' });
-    s7.addText(`Safe Man Hours: ${safeManHours.toLocaleString('id-ID')}`, { x: sx, y: 2.35, fontSize: 24, bold: true, color: '14364A' });
-    s7.addText(`Total Issues: ${issuesCount}`, { x: sx, y: 3.05, fontSize: 24, bold: true, color: '14364A' });
-    s7.addText(`Total Plans: ${plansCount}`, { x: sx, y: 3.75, fontSize: 24, bold: true, color: '14364A' });
+      s.addText(`Total Projects: ${totalProjects}`, {
+        x: left, y, w: width, h: 0.45, fontSize: FONTS.h2, bold: true, color: COLORS.text
+      }); y += 0.7;
 
-    // =========================
-    // SAVE
-    // =========================
+      s.addText(`Average Progress: ${avgProgress}%`, {
+        x: left, y, w: width, h: 0.45, fontSize: FONTS.h2, bold: true, color: COLORS.text
+      }); y += 0.7;
+
+      s.addText(`Average Safety Score: ${avgSafety}%`, {
+        x: left, y, w: width, h: 0.45, fontSize: FONTS.h2, bold: true, color: COLORS.text
+      }); y += 0.7;
+
+      s.addText(`Active Permits: ${activePermits}`, {
+        x: left, y, w: width, h: 0.45, fontSize: FONTS.h2, bold: true, color: COLORS.text
+      }); y += 0.65;
+
+      s.addText(`Generated: ${new Date().toLocaleString('id-ID')}`, {
+        x: left, y, w: width, h: 0.4, fontSize: FONTS.small, color: '5E6B73'
+      });
+    }
+
+    // =========================================================
+    // 4) SECTION: Progress Project Details (slide judul)
+    // =========================================================
+    {
+      const s = pptx.addSlide();
+      addSectionHeader(s, 'Progress Project Details');
+    }
+
+    // =========================================================
+    // 5) TABEL PROYEK (card putih + logos + tabel)
+    // =========================================================
+    {
+      const s = pptx.addSlide();
+      addCornerLogos(s);
+      addContentCard(s);
+
+      // Header tabel
+      const rows = [[
+        { text: 'Project Name', options: { bold: true, color: COLORS.text } },
+        { text: 'Progress %', options: { bold: true, color: COLORS.text } },
+        { text: 'Safety Score', options: { bold: true, color: COLORS.text } },
+        { text: 'Budget Used %', options: { bold: true, color: COLORS.text } },
+      ]];
+
+      // isinya — 7 baris cukup (sesuai contoh)
+      filteredProjects.slice(0, 7).forEach(p => {
+        rows.push([
+          p.Project_Name.replace(' Substation', '').replace(' SS',''),
+          `${Number(p.Progress_Percent || 0).toFixed(1)}%`,
+          `${Number(p.Safety_Score || 0).toFixed(2)}%`,
+          `${Number(p.Budget_Used_Percent || 0).toFixed(1)}%`
+        ]);
+      });
+
+      s.addTable(rows, {
+        x: 1.45, y: 1.65, w: 7.2,
+        fontSize: 12,
+        align: 'left',
+        colW: [3.0, 1.4, 1.4, 1.4],
+        border: { type: 'solid', color: '33505B', pt: 1 },
+        fill: COLORS.white
+      });
+    }
+
+    // =========================================================
+    // 6) SECTION: Safety Analysis (slide judul)
+    // =========================================================
+    {
+      const s = pptx.addSlide();
+      addSectionHeader(s, 'Safety Analysis');
+    }
+
+    // =========================================================
+    // 7) SAFETY SUMMARY CONTENT (card putih + logos)
+    // =========================================================
+    {
+      const s = pptx.addSlide();
+      addCornerLogos(s);
+      addContentCard(s);
+
+      const totalManpower = (AppState.data.safety || [])
+        .reduce((sum, item) => sum + (Number(item.Total_Manpower) || 0), 0);
+      const safeManHours = (AppState.data.safety || [])
+        .reduce((sum, item) => sum + (Number(item.Safe_Man_Hours) || 0), 0);
+      const totalIssues = (AppState.data.issues || []).length;
+      const totalPlans = (AppState.data.plans || []).length;
+
+      const left = 1.45, width = 6.8;
+      let y = 1.55;
+
+      s.addText(`Total Manpower: ${totalManpower.toLocaleString('id-ID')}`, {
+        x: left, y, w: width, h: 0.55, fontSize: 24, bold: true, color: COLORS.text
+      }); y += 0.8;
+
+      s.addText(`Safe Man Hours: ${safeManHours.toLocaleString('id-ID')}`, {
+        x: left, y, w: width, h: 0.45, fontSize: FONTS.h2, bold: true, color: COLORS.text
+      }); y += 0.7;
+
+      s.addText(`Total Issues: ${totalIssues}`, {
+        x: left, y, w: width, h: 0.45, fontSize: FONTS.h2, bold: true, color: COLORS.text
+      }); y += 0.7;
+
+      s.addText(`Total Plans: ${totalPlans}`, {
+        x: left, y, w: width, h: 0.45, fontSize: FONTS.h2, bold: true, color: COLORS.text
+      });
+    }
+
+    // Save
     const fileName = `Pertamina_${type}_Report_${startDate}_${endDate}.pptx`;
     await pptx.writeFile({ fileName });
     showNotification('PowerPoint report berhasil didownload!', 'success');
   } catch (err) {
     console.error(err);
     showNotification('Error generating PowerPoint: ' + err.message, 'error');
-    // fallback text bila lib belum load
     generateFallbackReport(type, project, startDate, endDate);
   }
 }
