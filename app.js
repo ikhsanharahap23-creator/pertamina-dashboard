@@ -926,7 +926,7 @@ async function generatePowerPointReport(type, project, startDate, endDate) {
     const totalManpower = AppState.data.safety.reduce((sum,i)=>sum+(i.Total_Manpower||0),0);
     const safeManHours  = AppState.data.safety.reduce((sum,i)=>sum+(i.Safe_Man_Hours||0),0);
 
-// ---------- Slide 1: COVER (CLEAN LAYOUT) ----------
+// ---------- Slide 1: COVER (CLEAN LAYOUT + AUTO-RATIO LOGOS) ----------
 {
   const s = pptx.addSlide();
 
@@ -941,40 +941,67 @@ async function generatePowerPointReport(type, project, startDate, endDate) {
   // 1) Background full-bleed
   if (coverImg) s.addImage({ data: coverImg, x: 0, y: 0, w: SLIDE_W, h: SLIDE_H });
 
-  // 2) Banner semi-transparan (letakkan SEBELUM teks & logo agar tidak menutupi)
-  const bannerW = SAFE_W * 0.85;            // lebar relatif terhadap safe area
-  const bannerX = (SLIDE_W - bannerW) / 2;  // center horizontal
-  const bannerY = 1.65;                     // atur tinggi sesuai selera (1.5–1.8)
+  // 2) Banner semi-transparan (SEBELUM teks & logo)
+  const bannerW = SAFE_W * 0.85;
+  const bannerX = (SLIDE_W - bannerW) / 2;
+  const bannerY = 1.65;  // geser 1.55–1.8 kalau perlu
   const bannerH = 2.05;
   s.addShape(pptx.ShapeType.rect, {
     x: bannerX, y: bannerY, w: bannerW, h: bannerH,
     fill: { color: '000000', transparency: 35 }
   });
 
-  // 3) Logo kiri & kanan (proporsional, di dalam safe area)
-  // Rasio dari file logo:
-  // - Danantara: 1143x293 => aspect ≈ 3.902
-  // - Pertamina:  466x108 => aspect ≈ 4.315
-  const LOGO_SCALE = 1.0;        // ubah ke 0.9/1.1 untuk kecil/besar serentak
-  const DANAN_H = 0.60 * LOGO_SCALE;
-  const PERT_H  = 0.55 * LOGO_SCALE;
-  const DANAN_W = DANAN_H * (1143/293);
-  const PERT_W  = PERT_H  * (466/108);
+  // 3) LOGO proporsional (ukur rasio asli runtime -> anti gepeng)
+  const getImageNaturalSize = (dataUrl) => new Promise((resolve, reject) => {
+    if (!dataUrl) return resolve(null);
+    const im = new Image();
+    im.onload = () => resolve({ w: im.naturalWidth, h: im.naturalHeight });
+    im.onerror = reject;
+    im.src = dataUrl;
+  });
 
+  // fallback jika gagal baca ukuran
+  let dananAR = 1143 / 293;  // ≈ 3.902 (dari file yang kamu kirim)
+  let pertAR  = 466  / 108;  // ≈ 4.315
+
+  try {
+    const [ds, ps] = await Promise.all([
+      getImageNaturalSize(logoDanan),
+      getImageNaturalSize(logoPertamina),
+    ]);
+    if (ds?.w && ds?.h) dananAR = ds.w / ds.h;
+    if (ps?.w && ps?.h) pertAR  = ps.w / ps.h;
+  } catch { /* biarkan pakai fallback */ }
+
+  // simpan untuk dipakai divider
+  window.__logoAR = { dananAR, pertAR };
+
+  // target tinggi (inci) — proporsi final mirip contoh #2
+  const LOGO_SCALE = 1.0;        // ubah 0.95/1.05 bila sedikit besar/kecil
+  const DANAN_H = 0.62 * LOGO_SCALE;
+  const PERT_H  = 0.58 * LOGO_SCALE;
+
+  // hitung lebar dari rasio asli (anti gepeng)
+  const DANAN_W = DANAN_H * dananAR;
+  const PERT_W  = PERT_H  * pertAR;
+
+  // Kiri-atas: Danantara (safe area)
   if (logoDanan) {
     s.addImage({
       data: logoDanan,
       x: M,
-      y: M,
+      y: M + 0.02,
       w: DANAN_W,
       h: DANAN_H
     });
   }
+
+  // Kanan-atas: Pertamina (safe area)
   if (logoPertamina) {
     s.addImage({
       data: logoPertamina,
       x: SLIDE_W - M - PERT_W,
-      y: M + 0.02,
+      y: M + 0.06,
       w: PERT_W,
       h: PERT_H
     });
@@ -1001,7 +1028,7 @@ async function generatePowerPointReport(type, project, startDate, endDate) {
   });
 }
 
-// ---------- Divider helper (CLEAN) ----------
+// ---------- Divider helper (CLEAN + AUTO-RATIO LOGOS) ----------
 const addDivider = (title) => {
   const s = pptx.addSlide();
 
@@ -1009,7 +1036,7 @@ const addDivider = (title) => {
   const SLIDE_H = 5.63;
   const M = 0.5;
 
-  // Pakai background yang sama (full-bleed)
+  // Background reuse
   if (coverImg) s.addImage({ data: coverImg, x: 0, y: 0, w: SLIDE_W, h: SLIDE_H });
 
   // Overlay gelap tipis agar teks kebaca
@@ -1018,12 +1045,15 @@ const addDivider = (title) => {
     fill: { color: '000000', transparency: 70 }
   });
 
-  // Logo proporsional (pakai skala yang sama biar konsisten)
+  // pakai rasio yang sudah diukur di slide 1 (fallback jika belum ada)
+  const dananAR = window.__logoAR?.dananAR ?? (1143 / 293);
+  const pertAR  = window.__logoAR?.pertAR  ?? (466  / 108);
+
   const LOGO_SCALE = 1.0;
-  const DANAN_H = 0.60 * LOGO_SCALE;
-  const PERT_H  = 0.55 * LOGO_SCALE;
-  const DANAN_W = DANAN_H * (1143/293);
-  const PERT_W  = PERT_H  * (466/108);
+  const DANAN_H = 0.58 * LOGO_SCALE;   // sedikit lebih kecil di divider
+  const PERT_H  = 0.54 * LOGO_SCALE;
+  const DANAN_W = DANAN_H * dananAR;
+  const PERT_W  = PERT_H  * pertAR;
 
   if (logoDanan) {
     s.addImage({ data: logoDanan, x: M, y: M, w: DANAN_W, h: DANAN_H });
@@ -1038,7 +1068,6 @@ const addDivider = (title) => {
     fontFace: 'Arial', fontSize: 34, bold: true, color: 'FFFFFF', align: 'center'
   });
 };
-
 
     // ---------- Slide 2: EXECUTIVE SUMMARY (Divider) ----------
     addDivider('Executive Summary');
