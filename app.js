@@ -900,7 +900,7 @@ async function generateReport() {
     updateReportsTable();
 }
 
-// ==== REPLACED: full template version
+// === NEW generatePowerPointReport (full replacement) ===
 async function generatePowerPointReport(type, project, startDate, endDate) {
   try {
     if (typeof PptxGenJS === 'undefined') {
@@ -909,128 +909,219 @@ async function generatePowerPointReport(type, project, startDate, endDate) {
       return;
     }
 
-    const items = getProjectsForReport(project);
-    const totalProjects = items.length;
-    const avgProgress = totalProjects ? Math.round(items.reduce((s, p) => s + (p.Progress_Percent || 0), 0) / totalProjects) : 0;
-    const avgSafety   = totalProjects ? Math.round(items.reduce((s, p) => s + (p.Safety_Score || 0), 0) / totalProjects) : 0;
-    const activePermits = AppState.data.permits.filter(p => p.Status === 'Open').length;
+    // --- data & helpers ---
+    const filteredProjects =
+      project === 'all'
+        ? AppState.data.projects
+        : AppState.data.projects.filter(p => p.Project_Name === project);
 
-    const totalManpower = AppState.data.safety.reduce((sum, x) => sum + (x.Total_Manpower || 0), 0);
-    const safeManHours  = AppState.data.safety.reduce((sum, x) => sum + (x.Safe_Man_Hours || 0), 0);
-    const totalIssues   = AppState.data.issues.length;
-    const totalPlans    = AppState.data.plans.length;
+    const titleCase = s => s.charAt(0).toUpperCase() + s.slice(1);
+    const reportTitle = `Construction ${titleCase(type)} Report`;
+    const periodStr = `Period: ${startDate} to ${endDate}`;
+    const projectLabel = project === 'all' ? 'Semua Proyek' : project;
 
-    const titleProject = project === 'all' ? 'Semua Proyek' : project;
-    const periodText   = `Period: ${startDate} to ${endDate}`;
+    // --- load asset images as Data URL ---
+    const [coverImg, dananLogo, pertaminaLogo] = await Promise.all([
+      loadAsDataUrl(absPath(ASSETS.cover)),
+      loadAsDataUrl(absPath(ASSETS.logoDanan)),
+      loadAsDataUrl(absPath(ASSETS.logoPertamina)),
+    ]);
 
-    const bgCoverData   = await loadAsDataUrl(absPath(ASSETS.cover));
-    const logoDananData = await loadAsDataUrl(absPath(ASSETS.logoDanan));
-    const logoPertData  = await loadAsDataUrl(absPath(ASSETS.logoPertamina));
-
+    // --- create deck ---
     const pptx = new PptxGenJS();
     pptx.layout = 'LAYOUT_16x9';
-    pptx.author  = 'Pertamina Construction Dashboard';
+    pptx.author = 'Pertamina Construction Dashboard';
     pptx.company = 'Pertamina';
-    pptx.title   = `Construction ${type.charAt(0).toUpperCase() + type.slice(1)} Report`;
+    pptx.title = `Pertamina ${reportTitle}`;
 
-    // SLIDE 1 — COVER
+    // ========== SLIDE 1: COVER ==========
     {
-      const slide = pptx.addSlide();
-      slide.addImage({ data: bgCoverData, x: 0, y: 0, w: 10, h: 5.625 });
-      slide.addImage({ data: logoDananData, x: 0.4, y: 0.25, w: 2.9 });
-      slide.addImage({ data: logoPertData,  x: 7.8, y: 0.25, w: 1.8 });
-
-      slide.addText(`Construction ${type.charAt(0).toUpperCase() + type.slice(1)} Report`, {
-        x: 1.0, y: 1.25, w: 8, h: 0.8, fontSize: 36, bold: true, color: "FFFFFF"
-      });
-      slide.addText(titleProject, { x: 1.0, y: 2.0, w: 8, h: 0.7, fontSize: 28, bold: true, color: "FFFFFF" });
-      slide.addText(periodText,  { x: 1.0, y: 2.8, w: 8, h: 0.7, fontSize: 26, bold: true, color: "FFFFFF" });
-    }
-
-    // helper: section title slide
-    const addSectionTitle = (title) => {
       const s = pptx.addSlide();
-      s.background = { color: P.grayBg };
-      s.addShape(pptx.ShapeType.roundRect, { x: 1.0, y: 1.6, w: 8.0, h: 1.3, fill: P.light, line: { color: P.light } });
-      s.addText(title, { x: 1.0, y: 1.85, w: 8.0, h: 0.8, fontSize: 36, bold: true, color: P.darkBlue, align: 'center' });
-      s.addShape(pptx.ShapeType.roundRect, { x: 0, y: 5.125, w: 2.3, h: 0.5, fill: "E61C23", line: { color: "E61C23" }, rectRadius: 20 });
-      s.addImage({ data: logoPertData, x: 8.6, y: 0.2, w: 1.2 });
-    };
 
-    // SLIDE 2 — Section Title
-    addSectionTitle("Executive Summary");
+      // background image (full bleed)
+      s.addImage({ data: coverImg, x: 0, y: 0, w: 13.33, h: 7.5 });
 
-    // SLIDE 3 — Executive Summary content
-    {
-      const slide = pptx.addSlide();
-      slide.addImage({ data: logoDananData, x: 0.5, y: 0.4, w: 2.5 });
-      slide.addImage({ data: logoPertData,  x: 8.3, y: 0.4, w: 1.3 });
-
-      const left = 1.3, top0 = 2.1, lh = 0.9;
-      const bullet = (text, i, big = false) => slide.addText(text, {
-        x: left, y: top0 + i * lh, w: 7, h: 0.6, fontSize: big ? 28 : 26, bold: true, color: P.darkBlue
+      // translucent band
+      s.addShape(pptx.ShapeType.rect, {
+        x: 0.8,
+        y: 1.3,
+        w: 11.7,
+        h: 3.2,
+        fill: { color: '000000', transparency: 35 },
+        line: { color: '000000', width: 0 },
       });
 
-      bullet(`Total Projects: ${totalProjects}`, 0, true);
-      bullet(`Average Progress: ${avgProgress}%`, 1);
-      bullet(`Average Safety Score: ${avgSafety}%`, 2);
-      bullet(`Active Permits: ${activePermits}`, 3);
-      bullet(`Generated: ${new Date().toLocaleString('id-ID')}`, 4);
+      // left-top: Danantara logo capsule
+      s.addShape(pptx.ShapeType.roundRect, {
+        x: 0.6,
+        y: 0.35,
+        w: 3.7,
+        h: 0.9,
+        fill: { color: 'FFFFFF' },
+        line: { color: 'FFFFFF', width: 0 },
+        rectRadius: 0.3,
+      });
+      s.addImage({ data: dananLogo, x: 0.8, y: 0.43, h: 0.7, w: 3.3, sizing: { type: 'contain', w: 3.3, h: 0.7 } });
+
+      // right-top: Pertamina logo capsule
+      s.addShape(pptx.ShapeType.roundRect, {
+        x: 9.9,
+        y: 0.35,
+        w: 2.9,
+        h: 0.9,
+        fill: { color: 'FFFFFF' },
+        line: { color: 'FFFFFF', width: 0 },
+        rectRadius: 0.3,
+      });
+      s.addImage({ data: pertaminaLogo, x: 10.05, y: 0.43, h: 0.7, w: 2.6, sizing: { type: 'contain', w: 2.6, h: 0.7 } });
+
+      // title block (3 baris)
+      s.addText(reportTitle, {
+        x: 1.1,
+        y: 1.55,
+        w: 10.6,
+        h: 1,
+        fontSize: 36,
+        bold: true,
+        color: 'FFFFFF',
+      });
+      s.addText(projectLabel, {
+        x: 1.1,
+        y: 2.35,
+        w: 10.6,
+        h: 0.9,
+        fontSize: 30,
+        bold: true,
+        color: 'FFFFFF',
+      });
+      s.addText(periodStr, {
+        x: 1.1,
+        y: 3.05,
+        w: 10.6,
+        h: 0.9,
+        fontSize: 28,
+        bold: true,
+        color: 'FFFFFF',
+      });
     }
 
-    // SLIDE 4 — Section Title
-    addSectionTitle("Progress Project Details");
-
-    // SLIDE 5 — Table
+    // ========== SLIDE 2: EXEC SUMMARY (title card + angka) ==========
     {
-      const slide = pptx.addSlide();
-      slide.addImage({ data: logoDananData, x: 0.5, y: 0.35, w: 2.5 });
-      slide.addImage({ data: logoPertData,  x: 8.3, y: 0.35, w: 1.3 });
+      const s = pptx.addSlide();
+
+      // title stripe ala template
+      s.addShape(pptx.ShapeType.roundRect, {
+        x: 0.9, y: 2.0, w: 11.5, h: 1.7,
+        fill: { color: 'F1F1F1' },
+        line: { color: 'F1F1F1', width: 0 }, rectRadius: 0.15,
+      });
+      s.addText('Executive Summary', {
+        x: 1.1, y: 2.25, w: 11.1, h: 1.2,
+        fontSize: 36, bold: true, color: '184E5C', align: 'center',
+      });
+
+      // angka di slide berikutnya (white page)
+      const s2 = pptx.addSlide();
+      s2.addImage({ data: dananLogo, x: 0.6, y: 0.5, w: 2.6, h: 0.8, sizing: { type: 'contain', w: 2.6, h: 0.8 } });
+      s2.addImage({ data: pertaminaLogo, x: 10.4, y: 0.5, w: 2.4, h: 0.8, sizing: { type: 'contain', w: 2.4, h: 0.8 } });
+
+      const totalProjects = filteredProjects.length;
+      const avgProgress = totalProjects ? Math.round(filteredProjects.reduce((a, p) => a + (p.Progress_Percent || 0), 0) / totalProjects) : 0;
+      const avgSafety = totalProjects ? Math.round(filteredProjects.reduce((a, p) => a + (p.Safety_Score || 0), 0) / totalProjects) : 0;
+      const activePermits = (AppState.data.permits || []).filter(p => p.Status === 'Open').length;
+
+      const lines = [
+        `Total Projects: ${totalProjects}`,
+        `Average Progress: ${avgProgress}%`,
+        `Average Safety Score: ${avgSafety}%`,
+        `Active Permits: ${activePermits}`,
+        `Generated: ${new Date().toLocaleString('id-ID')}`,
+      ];
+
+      let y = 2.0;
+      lines.forEach(txt => {
+        s2.addText(txt, { x: 1.4, y, w: 10.5, h: 0.8, fontSize: 28, bold: true, color: '0D3050' });
+        y += 1.0;
+      });
+    }
+
+    // ========== SLIDE 3: PROGRESS TABLE (title card + tabel) ==========
+    {
+      // title card
+      const s = pptx.addSlide();
+      s.addShape(pptx.ShapeType.roundRect, {
+        x: 0.9, y: 2.0, w: 11.5, h: 1.7,
+        fill: { color: 'F1F1F1' }, line: { color: 'F1F1F1', width: 0 }, rectRadius: 0.15,
+      });
+      s.addText('Progress Project Details', {
+        x: 1.1, y: 2.25, w: 11.1, h: 1.2,
+        fontSize: 36, bold: true, color: '184E5C', align: 'center',
+      });
+
+      // tabel di slide berikutnya (dengan logo kiri–kanan)
+      const s2 = pptx.addSlide();
+      s2.addImage({ data: dananLogo, x: 0.6, y: 0.5, w: 2.6, h: 0.8, sizing: { type: 'contain', w: 2.6, h: 0.8 } });
+      s2.addImage({ data: pertaminaLogo, x: 10.4, y: 0.5, w: 2.4, h: 0.8, sizing: { type: 'contain', w: 2.4, h: 0.8 } });
 
       const header = [
-        { text: 'Project Name', options: { bold: true, color: P.darkBlue } },
-        { text: 'Progress %',  options: { bold: true, color: P.darkBlue } },
-        { text: 'Safety Score',options: { bold: true, color: P.darkBlue } },
-        { text: 'Budget Used %', options: { bold: true, color: P.darkBlue } }
+        { text: 'Project Name', options: { bold: true, color: '184E5C' } },
+        { text: 'Progress %',   options: { bold: true, color: '184E5C' } },
+        { text: 'Safety Score', options: { bold: true, color: '184E5C' } },
+        { text: 'Budget Used %',options: { bold: true, color: '184E5C' } },
       ];
-      const rows = items.map(p => ([
+      const rows = filteredProjects.map(p => [
         p.Project_Name.replace(' Substation', '').replace(' SS', ''),
-        `${Number(p.Progress_Percent ?? 0).toFixed(1)}%`,
-        `${Number(p.Safety_Score ?? 0).toFixed(2)}%`,
-        `${Number(p.Budget_Used_Percent ?? 0).toFixed(1)}%`
-      ]));
+        `${Number(p.Progress_Percent || 0).toFixed(1)}%`,
+        `${Number(p.Safety_Score || 0).toFixed(1)}%`,
+        `${Number(p.Budget_Used_Percent || 0).toFixed(1)}%`,
+      ]);
+      const tbl = [header, ...rows];
 
-      slide.addTable([header, ...rows], {
-        x: 0.8, y: 1.4, w: 8.6,
-        border: { type: 'solid', color: P.tableLine, pt: 1 },
-        fontSize: 14, fill: "FFFFFF",
-        colW: [3.2, 1.6, 2.0, 1.8],
-        align: 'left'
+      s2.addTable(tbl, {
+        x: 0.7, y: 1.7, w: 12.0,
+        border: { type: 'solid', color: '184E5C', pt: 1 },
+        fontSize: 14,
+        fill: 'FFFFFF',
+        valign: 'middle',
+        colW: [4.5, 2.4, 2.6, 2.5],
       });
     }
 
-    // SLIDE 6 — Section Title
-    addSectionTitle("Safety Analysis");
-
-    // SLIDE 7 — Safety content
+    // ========== SLIDE 4: SAFETY (title card + angka) ==========
     {
-      const slide = pptx.addSlide();
-      slide.addImage({ data: logoDananData, x: 0.5, y: 0.4, w: 2.5 });
-      slide.addImage({ data: logoPertData,  x: 8.3, y: 0.4, w: 1.3 });
+      // title card
+      const s = pptx.addSlide();
+      s.addShape(pptx.ShapeType.roundRect, {
+        x: 0.9, y: 2.0, w: 11.5, h: 1.7,
+        fill: { color: 'F1F1F1' }, line: { color: 'F1F1F1', width: 0 }, rectRadius: 0.15,
+      });
+      s.addText('Safety Analysis', {
+        x: 1.1, y: 2.25, w: 11.1, h: 1.2,
+        fontSize: 36, bold: true, color: '184E5C', align: 'center',
+      });
 
-      const left = 1.3, top0 = 2.1, lh = 0.95;
-      slide.addText(`Total Manpower: ${Number(totalManpower).toLocaleString('id-ID')}`, { x: left, y: top0, w: 7, h: 0.8, fontSize: 36, bold: true, color: P.darkBlue });
-      slide.addText(`Safe Man Hours: ${Number(safeManHours).toLocaleString('id-ID')}`, { x: left, y: top0 + lh, w: 7, h: 0.6, fontSize: 28, bold: true, color: P.darkBlue });
-      slide.addText(`Total Issues: ${totalIssues}`, { x: left, y: top0 + 2*lh, w: 7, h: 0.6, fontSize: 28, bold: true, color: P.darkBlue });
-      slide.addText(`Total Plans: ${totalPlans}`, { x: left, y: top0 + 3*lh, w: 7, h: 0.6, fontSize: 28, bold: true, color: P.darkBlue });
+      // angka
+      const s2 = pptx.addSlide();
+      s2.addImage({ data: dananLogo, x: 0.6, y: 0.5, w: 2.6, h: 0.8, sizing: { type: 'contain', w: 2.6, h: 0.8 } });
+      s2.addImage({ data: pertaminaLogo, x: 10.4, y: 0.5, w: 2.4, h: 0.8, sizing: { type: 'contain', w: 2.4, h: 0.8 } });
+
+      const totalManpower = AppState.data.safety.reduce((sum, x) => sum + (x.Total_Manpower || 0), 0);
+      const safeManHours   = AppState.data.safety.reduce((sum, x) => sum + (x.Safe_Man_Hours || 0), 0);
+      const totalIssues    = (AppState.data.issues || []).length;
+      const totalPlans     = (AppState.data.plans || []).length;
+
+      s2.addText(`Total Manpower: ${Number(totalManpower).toLocaleString('id-ID')}`, { x: 1.4, y: 2.0, w: 10.5, h: 0.9, fontSize: 40, bold: true, color: '0D3050' });
+      s2.addText(`Safe Man Hours: ${Number(safeManHours).toLocaleString('id-ID')}`, { x: 1.4, y: 3.1, w: 10.5, h: 0.8, fontSize: 28, bold: true, color: '0D3050' });
+      s2.addText(`Total Issues: ${totalIssues}`, { x: 1.4, y: 4.0, w: 10.5, h: 0.8, fontSize: 28, bold: true, color: '0D3050' });
+      s2.addText(`Total Plans: ${totalPlans}`, { x: 1.4, y: 4.9, w: 10.5, h: 0.8, fontSize: 28, bold: true, color: '0D3050' });
     }
 
-    const fileName = `Pertamina_${type}_Report_${startDate}_${endDate}.pptx`;
+    // --- download ---
+    const fileName = `Pertamina_${type}_Report_${new Date().toISOString().split('T')[0]}.pptx`;
     await pptx.writeFile({ fileName });
     showNotification('PowerPoint report berhasil didownload!', 'success');
-
   } catch (err) {
-    console.error(err);
+    console.error('Error generating PowerPoint:', err);
     showNotification('Error generating PowerPoint: ' + err.message, 'error');
     generateFallbackReport(type, project, startDate, endDate);
   }
