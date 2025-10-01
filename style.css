@@ -739,6 +739,40 @@ select.form-control {
 
 /* END PERPLEXITY DESIGN SYSTEM */
 /* Enhanced layout for Pertamina Dashboard */
+.app-header {
+    display: none;
+    align-items: center;
+    justify-content: space-between;
+    padding: var(--space-16) var(--space-24);
+    background: var(--color-surface);
+    border-bottom: 1px solid var(--color-border);
+    position: sticky;
+    top: 0;
+    z-index: 95;
+}
+
+.app-header__title {
+    font-size: var(--font-size-lg);
+    font-weight: var(--font-weight-semibold);
+    color: var(--color-text);
+}
+
+.sidebar-toggle {
+    display: none;
+    background: none;
+    border: none;
+    padding: var(--space-8);
+    font-size: var(--font-size-3xl);
+    line-height: 1;
+    color: var(--color-text);
+    cursor: pointer;
+}
+
+.sidebar-toggle:focus-visible {
+    outline: var(--focus-outline);
+    outline-offset: 2px;
+}
+
 .sidebar {
     position: fixed;
     left: 0;
@@ -752,7 +786,20 @@ select.form-control {
     flex-direction: column;
     box-shadow: var(--shadow-md);
 }
+.sidebar-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.4);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity var(--duration-normal) var(--ease-standard);
+    z-index: 90;
+}
 
+.sidebar-overlay.active {
+    opacity: 1;
+    pointer-events: auto;
+}
 .sidebar-header {
     padding: var(--space-24);
     border-bottom: 1px solid var(--color-border);
@@ -1709,11 +1756,21 @@ tr:hover td {
 }
 
 @media (max-width: 768px) {
+    .app-header {
+        display: flex;
+    }
+
+    .sidebar-toggle {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+    }
+
     .sidebar {
         transform: translateX(-100%);
         transition: transform var(--duration-normal) var(--ease-standard);
     }
-    
+    +
     .sidebar.open {
         transform: translateX(0);
     }
