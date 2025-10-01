@@ -173,6 +173,25 @@ function initializeApp() {
 }
 
 // Navigation setup
+const mobileSidebarQuery = window.matchMedia('(max-width: 768px)');
+
+function closeSidebar() {
+    const sidebar = document.querySelector('.sidebar');
+    const overlay = document.querySelector('.sidebar-overlay');
+    const toggleButton = document.querySelector('[data-sidebar-toggle]');
+
+    if (sidebar?.classList.contains('open')) {
+        sidebar.classList.remove('open');
+    }
+    if (overlay) {
+        overlay.classList.remove('active');
+        overlay.setAttribute('aria-hidden', 'true');
+    }
+    if (toggleButton) {
+        toggleButton.setAttribute('aria-expanded', 'false');
+    }
+}
+
 function setupNavigation() {
     const navLinks = document.querySelectorAll('.nav-link');
     navLinks.forEach(link => {
@@ -180,6 +199,9 @@ function setupNavigation() {
             e.preventDefault();
             const targetSection = this.getAttribute('data-section');
             switchSection(targetSection);
+               if (mobileSidebarQuery.matches) {
+                closeSidebar();
+            }
             navLinks.forEach(nav => nav.classList.remove('active'));
             this.classList.add('active');
         });
