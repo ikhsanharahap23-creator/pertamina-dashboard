@@ -16,7 +16,7 @@
 <body>
 
   <!-- Sidebar -->
-  <aside class="sidebar">
+  <aside class="sidebar" id="sidebar">
     <div class="sidebar-header">
       <h2>Construction AI</h2>
       <div style="color:var(--color-text-secondary);font-size:12px;">Pertamina Dashboard</div>
@@ -43,6 +43,15 @@
       </a>
     </nav>
   </aside>
+
+  <button class="sidebar-toggle" type="button" aria-controls="sidebar" aria-expanded="false">
+    <span class="sr-only">Toggle navigasi</span>
+    <span class="sidebar-toggle__bar" aria-hidden="true"></span>
+    <span class="sidebar-toggle__bar" aria-hidden="true"></span>
+    <span class="sidebar-toggle__bar" aria-hidden="true"></span>
+  </button>
+
+  <div class="sidebar-overlay" aria-hidden="true"></div>
 
   <!-- Main -->
   <main class="main-content">

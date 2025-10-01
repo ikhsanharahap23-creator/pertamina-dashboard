@@ -747,10 +747,67 @@ select.form-control {
     height: 100vh;
     background: var(--color-surface);
     border-right: 1px solid var(--color-border);
-    z-index: 100;
+    z-index: 200;
     display: flex;
     flex-direction: column;
     box-shadow: var(--shadow-md);
+    transform: translateX(0);
+    transition: transform var(--duration-normal) var(--ease-standard);
+}
+
+.sidebar-toggle {
+    position: fixed;
+    top: var(--space-16);
+    left: var(--space-16);
+    z-index: 250;
+    display: inline-flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    gap: 6px;
+    width: 44px;
+    height: 44px;
+    border-radius: var(--radius-full);
+    border: none;
+    background: var(--color-primary);
+    color: var(--color-btn-primary-text);
+    cursor: pointer;
+    box-shadow: var(--shadow-md);
+    transition: background var(--duration-fast) var(--ease-standard), transform var(--duration-fast) var(--ease-standard);
+}
+
+.sidebar-toggle:hover {
+    background: var(--color-primary-hover);
+}
+
+.sidebar-toggle:active {
+    transform: scale(0.96);
+    background: var(--color-primary-active);
+}
+
+.sidebar-toggle__bar {
+    display: block;
+    width: 20px;
+    height: 2px;
+    border-radius: 999px;
+    background: currentColor;
+}
+
+.sidebar-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(var(--color-slate-900-rgb), 0.45);
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+    transition: opacity var(--duration-normal) var(--ease-standard), visibility var(--duration-normal) var(--ease-standard);
+    z-index: 150;
+}
+
+.sidebar-overlay.active {
+    opacity: 1;
+    visibility: visible;
+    pointer-events: auto;
 }
 
 .sidebar-header {
@@ -1711,9 +1768,8 @@ tr:hover td {
 @media (max-width: 768px) {
     .sidebar {
         transform: translateX(-100%);
-        transition: transform var(--duration-normal) var(--ease-standard);
     }
-    
+
     .sidebar.open {
         transform: translateX(0);
     }
@@ -1755,5 +1811,12 @@ tr:hover td {
     .table-container {
         overflow-x: scroll;
         -webkit-overflow-scrolling: touch;
+    }
+}
+
+@media (min-width: 769px) {
+    .sidebar-toggle,
+    .sidebar-overlay {
+        display: none;
     }
 }

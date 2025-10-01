@@ -154,6 +154,7 @@ function initializeApp() {
 
     // Setup navigation
     setupNavigation();
+    setupSidebarToggle();
 
     // Initialize all sections
     initializeOverview();
@@ -184,6 +185,48 @@ function setupNavigation() {
             this.classList.add('active');
         });
     });
+}
+
+function setupSidebarToggle() {
+    const sidebar = document.querySelector('.sidebar');
+    const toggleButton = document.querySelector('.sidebar-toggle');
+    const overlay = document.querySelector('.sidebar-overlay');
+
+    if (!sidebar || !toggleButton || !overlay) {
+        return;
+    }
+
+    const openSidebar = () => {
+        sidebar.classList.add('open');
+        overlay.classList.add('active');
+        toggleButton.setAttribute('aria-expanded', 'true');
+    };
+
+    const closeSidebar = () => {
+        sidebar.classList.remove('open');
+        overlay.classList.remove('active');
+        toggleButton.setAttribute('aria-expanded', 'false');
+    };
+
+    const toggleSidebar = () => {
+        if (sidebar.classList.contains('open')) {
+            closeSidebar();
+        } else {
+            openSidebar();
+        }
+    };
+
+    toggleButton.addEventListener('click', toggleSidebar);
+    overlay.addEventListener('click', closeSidebar);
+
+    const handleResize = () => {
+        if (window.innerWidth >= 769) {
+            closeSidebar();
+        }
+    };
+
+    window.addEventListener('resize', handleResize);
+    handleResize();
 }
 
 function switchSection(sectionName) {
