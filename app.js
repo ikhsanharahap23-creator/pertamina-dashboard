@@ -1016,11 +1016,11 @@ async function generatePowerPointReport(type, project, startDate, endDate) {
   // 2) Banner semi-transparan (SEBELUM teks & logo)
   const bannerW = SAFE_W * 0.85;
   const bannerX = (SLIDE_W - bannerW) / 2;
-  const bannerY = 1.65;  // geser 1.55–1.8 kalau perlu
-  const bannerH = 2.05;
+  const bannerY = 1.45;  // sedikit lebih tinggi mengikuti identitas baru
+  const bannerH = 2.3;
   s.addShape(pptx.ShapeType.rect, {
     x: bannerX, y: bannerY, w: bannerW, h: bannerH,
-    fill: { color: '000000', transparency: 35 }
+    fill: { color: '0B3C5D', transparency: 18 }
   });
 
   // 3) LOGO proporsional (ukur rasio asli runtime -> anti gepeng)
@@ -1049,9 +1049,9 @@ async function generatePowerPointReport(type, project, startDate, endDate) {
   window.__logoAR = { dananAR, pertAR };
 
   // target tinggi (inci) — proporsi final mirip contoh #2
-  const LOGO_SCALE = 1.0;        // ubah 0.95/1.05 bila sedikit besar/kecil
-  const DANAN_H = 0.62 * LOGO_SCALE;
-  const PERT_H  = 0.58 * LOGO_SCALE;
+  const LOGO_SCALE = 1.05;        // identitas baru sedikit lebih besar
+  const DANAN_H = 0.6 * LOGO_SCALE;
+  const PERT_H  = 0.56 * LOGO_SCALE;
 
   // hitung lebar dari rasio asli (anti gepeng)
   const DANAN_W = DANAN_H * dananAR;
@@ -1082,21 +1082,21 @@ async function generatePowerPointReport(type, project, startDate, endDate) {
   // 4) Teks (hierarki: judul > subjudul > periode)
   const title   = 'Construction Weekly Report';
   const subtitle = (project === 'all' ? 'Semua Proyek' : project);
-  const period  = `Period: ${startDate} to ${endDate}`;
+  const period  = `Periode ${startDate} – ${endDate}`;
 
   s.addText(title, {
-    x: bannerX + 0.4, y: bannerY + 0.25, w: bannerW - 0.8, h: 0.75,
-    fontFace: 'Arial', fontSize: 30, bold: true, color: 'FFFFFF', align: 'left'
+    x: bannerX + 0.45, y: bannerY + 0.2, w: bannerW - 0.9, h: 0.9,
+    fontFace: 'Calibri', fontSize: 34, bold: true, color: 'FFFFFF', align: 'left'
   });
 
   s.addText(subtitle, {
-    x: bannerX + 0.4, y: bannerY + 1.00, w: bannerW - 0.8, h: 0.6,
-    fontFace: 'Arial', fontSize: 24, bold: true, color: 'FFFFFF', align: 'left'
+    x: bannerX + 0.45, y: bannerY + 0.95, w: bannerW - 0.9, h: 0.65,
+    fontFace: 'Calibri Light', fontSize: 24, color: 'D5E6F2', align: 'left'
   });
 
   s.addText(period, {
-    x: bannerX + 0.4, y: bannerY + 1.55, w: bannerW - 0.8, h: 0.5,
-    fontFace: 'Arial', fontSize: 20, bold: true, color: 'FFFFFF', align: 'left'
+    x: bannerX + 0.45, y: bannerY + 1.55, w: bannerW - 0.9, h: 0.5,
+    fontFace: 'Calibri', fontSize: 18, italic: true, color: 'BFD4E6', align: 'left'
   });
 }
 
@@ -1111,19 +1111,19 @@ const addDivider = (title) => {
   // Background reuse
   if (coverImg) s.addImage({ data: coverImg, x: 0, y: 0, w: SLIDE_W, h: SLIDE_H });
 
-  // Overlay gelap tipis agar teks kebaca
+  // Overlay dengan warna identitas baru agar teks lebih konsisten
   s.addShape(pptx.ShapeType.rect, {
     x: 0, y: 0, w: SLIDE_W, h: SLIDE_H,
-    fill: { color: '000000', transparency: 70 }
+    fill: { color: '0B3C5D', transparency: 55 }
   });
 
   // pakai rasio yang sudah diukur di slide 1 (fallback jika belum ada)
   const dananAR = window.__logoAR?.dananAR ?? (1143 / 293);
   const pertAR  = window.__logoAR?.pertAR  ?? (466  / 108);
 
-  const LOGO_SCALE = 1.0;
-  const DANAN_H = 0.58 * LOGO_SCALE;   // sedikit lebih kecil di divider
-  const PERT_H  = 0.54 * LOGO_SCALE;
+  const LOGO_SCALE = 1.05;
+  const DANAN_H = 0.6 * LOGO_SCALE;   // proporsi sama dengan cover
+  const PERT_H  = 0.56 * LOGO_SCALE;
   const DANAN_W = DANAN_H * dananAR;
   const PERT_W  = PERT_H  * pertAR;
 
@@ -1136,8 +1136,9 @@ const addDivider = (title) => {
 
   // Judul divider di tengah
   s.addText(title, {
-    x: 1.25, y: 2.0, w: SLIDE_W - 2.5, h: 1.3,
-    fontFace: 'Arial', fontSize: 34, bold: true, color: 'FFFFFF', align: 'center'
+    x: 1.2, y: 2.0, w: SLIDE_W - 2.4, h: 1.3,
+    fontFace: 'Calibri', fontSize: 36, bold: true, color: 'FFFFFF', align: 'center',
+    underline: true
   });
 };
 
