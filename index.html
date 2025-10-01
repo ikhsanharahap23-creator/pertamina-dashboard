@@ -14,6 +14,18 @@
   <script src="pptxgen.bundle.js"></script>
 </head>
 <body>
+  <header class="app-header">
+    <button
+      class="sidebar-toggle"
+      type="button"
+      aria-label="Buka navigasi"
+      aria-expanded="false"
+      data-sidebar-toggle
+    >
+      ☰
+    </button>
+    <div class="app-header__title">Construction Dashboard AI</div>
+  </header>
 
   <!-- Sidebar -->
   <aside class="sidebar">
@@ -43,7 +55,7 @@
       </a>
     </nav>
   </aside>
-
+<div class="sidebar-overlay" aria-hidden="true"></div>
   <!-- Main -->
   <main class="main-content">
 
