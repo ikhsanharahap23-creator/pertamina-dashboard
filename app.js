@@ -154,6 +154,7 @@ function initializeApp() {
 
     // Setup navigation
     setupNavigation();
+    setupSidebarInteractions();
 
     // Initialize all sections
     initializeOverview();
@@ -174,6 +175,22 @@ function initializeApp() {
 
 // Navigation setup
 const mobileSidebarQuery = window.matchMedia('(max-width: 768px)');
+function openSidebar() {
+    const sidebar = document.querySelector('.sidebar');
+    const overlay = document.querySelector('.sidebar-overlay');
+    const toggleButton = document.querySelector('[data-sidebar-toggle]');
+
+    if (sidebar && !sidebar.classList.contains('open')) {
+        sidebar.classList.add('open');
+    }
+    if (overlay) {
+        overlay.classList.add('active');
+        overlay.setAttribute('aria-hidden', 'false');
+    }
+    if (toggleButton) {
+        toggleButton.setAttribute('aria-expanded', 'true');
+    }
+}
 
 function closeSidebar() {
     const sidebar = document.querySelector('.sidebar');
@@ -191,7 +208,40 @@ function closeSidebar() {
         toggleButton.setAttribute('aria-expanded', 'false');
     }
 }
+function setupSidebarInteractions() {
+    const sidebar = document.querySelector('.sidebar');
+    const overlay = document.querySelector('.sidebar-overlay');
+    const toggleButton = document.querySelector('[data-sidebar-toggle]');
 
+    if (toggleButton && sidebar) {
+        toggleButton.addEventListener('click', () => {
+            if (sidebar.classList.contains('open')) {
+                closeSidebar();
+            } else {
+                openSidebar();
+            }
+        });
+    }
+
+    if (overlay) {
+        overlay.addEventListener('click', () => {
+            closeSidebar();
+        });
+    }
+
+    mobileSidebarQuery.addEventListener('change', event => {
+        if (!event.matches && sidebar) {
+            sidebar.classList.remove('open');
+            if (overlay) {
+                overlay.classList.remove('active');
+                overlay.setAttribute('aria-hidden', 'true');
+            }
+            if (toggleButton) {
+                toggleButton.setAttribute('aria-expanded', 'false');
+            }
+        }
+    });
+}
 function setupNavigation() {
     const navLinks = document.querySelectorAll('.nav-link');
     navLinks.forEach(link => {
