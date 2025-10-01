@@ -740,7 +740,7 @@ select.form-control {
 /* END PERPLEXITY DESIGN SYSTEM */
 /* Enhanced layout for Pertamina Dashboard */
 .app-header {
-    display: none;
+    display: flex;
     align-items: center;
     justify-content: space-between;
     padding: var(--space-16) var(--space-24);
@@ -758,7 +758,9 @@ select.form-control {
 }
 
 .sidebar-toggle {
-    display: none;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
     background: none;
     border: none;
     padding: var(--space-8);
@@ -1756,21 +1758,12 @@ tr:hover td {
 }
 
 @media (max-width: 768px) {
-    .app-header {
-        display: flex;
-    }
-
-    .sidebar-toggle {
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-    }
-
+ 
     .sidebar {
         transform: translateX(-100%);
         transition: transform var(--duration-normal) var(--ease-standard);
     }
-    +
+  
     .sidebar.open {
         transform: translateX(0);
     }
@@ -1812,5 +1805,19 @@ tr:hover td {
     .table-container {
         overflow-x: scroll;
         -webkit-overflow-scrolling: touch;
+    }
+}
+@media (min-width: 769px) {
+    .app-header {
+        display: none;
+    }
+
+    .sidebar-toggle {
+        display: none;
+    }
+
+    .main-content {
+        margin-left: 280px;
+        padding: var(--space-24);
     }
 }
